@@ -1,5 +1,19 @@
 package net.earthcomputer.multiconnect.protocols.v1_16_5;
 
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.authlib.GameProfile;
@@ -7,6 +21,7 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.serialization.Codec;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -15,7 +30,12 @@ import net.earthcomputer.multiconnect.api.Protocols;
 import net.earthcomputer.multiconnect.api.ThreadSafe;
 import net.earthcomputer.multiconnect.impl.Utils;
 import net.earthcomputer.multiconnect.protocols.ProtocolRegistry;
-import net.earthcomputer.multiconnect.protocols.generic.*;
+import net.earthcomputer.multiconnect.protocols.generic.DataTrackerManager;
+import net.earthcomputer.multiconnect.protocols.generic.ISimpleRegistry;
+import net.earthcomputer.multiconnect.protocols.generic.Key;
+import net.earthcomputer.multiconnect.protocols.generic.PacketInfo;
+import net.earthcomputer.multiconnect.protocols.generic.RegistryMutator;
+import net.earthcomputer.multiconnect.protocols.generic.TagRegistry;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.mixin.CommandTreeS2CAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.mixin.DimensionTypeAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.mixin.EntityAccessor;
@@ -29,7 +49,12 @@ import net.earthcomputer.multiconnect.transformer.TransformerByteBuf;
 import net.earthcomputer.multiconnect.transformer.VarInt;
 import net.minecraft.advancement.Advancement;
 import net.minecraft.advancement.AdvancementProgress;
-import net.minecraft.block.*;
+import net.minecraft.block.AbstractRailBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.InfestedBlock;
+import net.minecraft.block.LeveledCauldronBlock;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.client.option.ChatVisibility;
 import net.minecraft.entity.Entity;
@@ -47,7 +72,46 @@ import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
 import net.minecraft.network.packet.c2s.play.ClientSettingsC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayPongC2SPacket;
 import net.minecraft.network.packet.c2s.play.RequestCommandCompletionsC2SPacket;
-import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.network.packet.s2c.play.AdvancementUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
+import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.CommandSuggestionsS2CPacket;
+import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket;
+import net.minecraft.network.packet.s2c.play.DeathMessageS2CPacket;
+import net.minecraft.network.packet.s2c.play.EndCombatS2CPacket;
+import net.minecraft.network.packet.s2c.play.EnterCombatS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityAttributesS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityS2CPacket;
+import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
+import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
+import net.minecraft.network.packet.s2c.play.LightUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.MapUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayPingS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerSpawnPositionS2CPacket;
+import net.minecraft.network.packet.s2c.play.ResourcePackSendS2CPacket;
+import net.minecraft.network.packet.s2c.play.SelectAdvancementTabS2CPacket;
+import net.minecraft.network.packet.s2c.play.StatisticsS2CPacket;
+import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.SynchronizeRecipesS2CPacket;
+import net.minecraft.network.packet.s2c.play.SynchronizeTagsS2CPacket;
+import net.minecraft.network.packet.s2c.play.TeamS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.UnlockRecipesS2CPacket;
+import net.minecraft.network.packet.s2c.play.VibrationS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldBorderCenterChangedS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldBorderInitializeS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldBorderInterpolateSizeS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldBorderSizeChangedS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldBorderWarningBlocksChangedS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldBorderWarningTimeChangedS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldTimeUpdateS2CPacket;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.recipe.Recipe;
@@ -57,7 +121,11 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.stat.Stat;
 import net.minecraft.stat.StatType;
 import net.minecraft.stat.Stats;
-import net.minecraft.tag.*;
+import net.minecraft.tag.BlockTags;
+import net.minecraft.tag.EntityTypeTags;
+import net.minecraft.tag.GameEventTags;
+import net.minecraft.tag.ItemTags;
+import net.minecraft.tag.TagGroup;
 import net.minecraft.text.Text;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Formatting;
@@ -72,15 +140,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.event.GameEvent;
 
-import java.util.*;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
 public class Protocol_1_16_5 extends Protocol_1_17 {
     public static final int BIOME_ARRAY_LENGTH = 1024;
     private static short lastActionId = 0;
 
-    private static final TrackedData<Optional<BlockPos>> OLD_SHULKER_ATTACHED_POSITION = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.OPTIONAL_BLOCK_POS);
+    private static final TrackedData<Optional<BlockPos>> OLD_SHULKER_ATTACHED_POSITION = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.OPTIONAL_BLOCK_POS);
 
     public static final Key<Boolean> FULL_CHUNK_KEY = Key.create("fullChunk", true);
 
@@ -97,15 +162,16 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             for (int i = 0; i < numDimensions; i++) {
                 dimensionIds.add(RegistryKey.of(Registry.WORLD_KEY, buf.readIdentifier()));
             }
-            //noinspection unchecked
-            buf.pendingReadCollection((Class<Collection<RegistryKey<World>>>) (Class<?>) Collection.class, (Class<RegistryKey<World>>) (Class<?>) RegistryKey.class, dimensionIds);
+            // noinspection unchecked
+            buf.pendingReadCollection((Class<Collection<RegistryKey<World>>>) (Class<?>) Collection.class,
+                    (Class<RegistryKey<World>>) (Class<?>) RegistryKey.class, dimensionIds);
             Codec<Set<Identifier>> dimensionSetCodec = Codec.list(Utils.singletonKeyCodec("name", Identifier.CODEC))
                     .xmap(ImmutableSet::copyOf, ImmutableList::copyOf);
-            Utils.translateDynamicRegistries(
-                    buf,
-                    Utils.singletonKeyCodec("minecraft:dimension_type", Utils.singletonKeyCodec("value", dimensionSetCodec)),
-                    ImmutableSet.of(new Identifier("overworld"), new Identifier("the_nether"), new Identifier("the_end"), new Identifier("overworld_caves"))::equals
-            );
+            Utils.translateDynamicRegistries(buf,
+                    Utils.singletonKeyCodec("minecraft:dimension_type",
+                            Utils.singletonKeyCodec("value", dimensionSetCodec)),
+                    ImmutableSet.of(new Identifier("overworld"), new Identifier("the_nether"),
+                            new Identifier("the_end"), new Identifier("overworld_caves"))::equals);
             translateDimensionType(buf);
             buf.applyPendingReads();
         });
@@ -120,7 +186,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             buf.disablePassthroughMode();
             boolean fullChunk = buf.readBoolean();
             buf.multiconnect_setUserData(FULL_CHUNK_KEY, fullChunk);
-            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] {buf.readVarInt()})); // vertical strip bitmask
+            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] { buf.readVarInt() })); // vertical strip bitmask
             buf.enablePassthroughMode();
             buf.readNbt(); // heightmaps
             if (fullChunk) {
@@ -137,8 +203,9 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             for (int i = 0; i < numBlockEntities; i++) {
                 blockEntities.add(buf.readNbt());
             }
-            //noinspection unchecked
-            buf.pendingReadCollection((Class<List<NbtCompound>>) (Class<?>) List.class, NbtCompound.class, blockEntities);
+            // noinspection unchecked
+            buf.pendingReadCollection((Class<List<NbtCompound>>) (Class<?>) List.class, NbtCompound.class,
+                    blockEntities);
             buf.applyPendingReads();
         });
         ProtocolRegistry.registerInboundTranslator(LightUpdateS2CPacket.class, buf -> {
@@ -148,26 +215,27 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             buf.readBoolean(); // trust edges
             buf.disablePassthroughMode();
             int skyLightMask = buf.readVarInt() & 0x3ffff;
-            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] {skyLightMask})); // sky light mask
+            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] { skyLightMask })); // sky light mask
             int blockLightMask = buf.readVarInt() & 0x3ffff;
-            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] {blockLightMask})); // block light mask
+            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] { blockLightMask })); // block light mask
             int filledSkyLightMask = buf.readVarInt() & 0x3ffff;
-            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] {filledSkyLightMask})); // filled sky light mask
+            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] { filledSkyLightMask })); // filled sky light mask
             int filledBlockLightMask = buf.readVarInt() & 0x3ffff;
-            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] {filledBlockLightMask})); // filled block light mask
+            buf.pendingRead(BitSet.class, BitSet.valueOf(new long[] { filledBlockLightMask })); // filled block light
+                                                                                                // mask
             int numSkyUpdates = Integer.bitCount(skyLightMask);
             List<byte[]> skyUpdates = new ArrayList<>(numSkyUpdates);
             for (int i = 0; i < numSkyUpdates; i++) {
                 skyUpdates.add(buf.readByteArray(2048));
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<byte[]>>) (Class<?>) List.class, byte[].class, skyUpdates);
             int numBlockUpdates = Integer.bitCount(blockLightMask);
             List<byte[]> blockUpdates = new ArrayList<>(numBlockUpdates);
             for (int i = 0; i < numBlockUpdates; i++) {
                 blockUpdates.add(buf.readByteArray(2048));
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<byte[]>>) (Class<?>) List.class, byte[].class, blockUpdates);
             buf.applyPendingReads();
         });
@@ -224,9 +292,10 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             int numAffectedBlocks = buf.readInt();
             List<BlockPos> affectedBlocks = new ArrayList<>();
             for (int i = 0; i < numAffectedBlocks; i++) {
-                affectedBlocks.add(new BlockPos(buf.readByte() + blockX, buf.readByte() + blockY, buf.readByte() + blockZ));
+                affectedBlocks
+                        .add(new BlockPos(buf.readByte() + blockX, buf.readByte() + blockY, buf.readByte() + blockZ));
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<BlockPos>>) (Class<?>) List.class, BlockPos.class, affectedBlocks);
             buf.applyPendingReads();
         });
@@ -249,7 +318,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
                 }
                 entries.add(new EntityAttributesS2CPacket.Entry(attribute, baseValue, modifiers));
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<EntityAttributesS2CPacket.Entry>>) (Class<?>) List.class,
                     EntityAttributesS2CPacket.Entry.class, entries);
             buf.applyPendingReads();
@@ -282,7 +351,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
                 Text tooltip = buf.readBoolean() ? buf.readText() : null;
                 suggestions.add(new Suggestion(range, value, tooltip));
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<Suggestion>>) (Class<?>) List.class, Suggestion.class, suggestions);
             buf.applyPendingReads();
         });
@@ -292,7 +361,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             for (int i = 0; i < numNodes; i++) {
                 nodes.add(CommandTreeS2CAccessor.callReadCommandNode(buf));
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<CommandTreeS2CPacket.CommandNodeData>>) (Class<?>) List.class,
                     CommandTreeS2CPacket.CommandNodeData.class, nodes);
             buf.applyPendingReads();
@@ -305,46 +374,46 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             var entries = new ArrayList<PlayerListS2CPacket.Entry>(numEntries);
             for (int i = 0; i < numEntries; i++) {
                 switch (action) {
-                    case ADD_PLAYER -> {
-                        GameProfile profile = new GameProfile(buf.readUuid(), buf.readString(16));
-                        int numProperties = buf.readVarInt();
-                        for (int j = 0; j < numProperties; j++) {
-                            String propertyKey = buf.readString();
-                            String value = buf.readString();
-                            if (buf.readBoolean()) {
-                                String signature = buf.readString();
-                                profile.getProperties().put(propertyKey, new Property(propertyKey, value, signature));
-                            } else {
-                                profile.getProperties().put(propertyKey, new Property(propertyKey, value));
-                            }
+                case ADD_PLAYER -> {
+                    GameProfile profile = new GameProfile(buf.readUuid(), buf.readString(16));
+                    int numProperties = buf.readVarInt();
+                    for (int j = 0; j < numProperties; j++) {
+                        String propertyKey = buf.readString();
+                        String value = buf.readString();
+                        if (buf.readBoolean()) {
+                            String signature = buf.readString();
+                            profile.getProperties().put(propertyKey, new Property(propertyKey, value, signature));
+                        } else {
+                            profile.getProperties().put(propertyKey, new Property(propertyKey, value));
                         }
-                        GameMode gameMode = GameMode.byId(buf.readVarInt());
-                        int latency = buf.readVarInt();
-                        Text displayName = buf.readBoolean() ? buf.readText() : null;
-                        entries.add(new PlayerListS2CPacket.Entry(profile, latency, gameMode, displayName));
                     }
-                    case UPDATE_GAME_MODE -> {
-                        GameProfile profile = new GameProfile(buf.readUuid(), null);
-                        GameMode gameMode = GameMode.byId(buf.readVarInt());
-                        entries.add(new PlayerListS2CPacket.Entry(profile, 0, gameMode, null));
-                    }
-                    case UPDATE_LATENCY -> {
-                        GameProfile profile = new GameProfile(buf.readUuid(), null);
-                        int latency = buf.readVarInt();
-                        entries.add(new PlayerListS2CPacket.Entry(profile, latency, null, null));
-                    }
-                    case UPDATE_DISPLAY_NAME -> {
-                        GameProfile profile = new GameProfile(buf.readUuid(), null);
-                        Text displayName = buf.readBoolean() ? buf.readText() : null;
-                        entries.add(new PlayerListS2CPacket.Entry(profile, 0, null, displayName));
-                    }
-                    case REMOVE_PLAYER -> {
-                        GameProfile profile = new GameProfile(buf.readUuid(), null);
-                        entries.add(new PlayerListS2CPacket.Entry(profile, 0, null, null));
-                    }
+                    GameMode gameMode = GameMode.byId(buf.readVarInt());
+                    int latency = buf.readVarInt();
+                    Text displayName = buf.readBoolean() ? buf.readText() : null;
+                    entries.add(new PlayerListS2CPacket.Entry(profile, latency, gameMode, displayName));
+                }
+                case UPDATE_GAME_MODE -> {
+                    GameProfile profile = new GameProfile(buf.readUuid(), null);
+                    GameMode gameMode = GameMode.byId(buf.readVarInt());
+                    entries.add(new PlayerListS2CPacket.Entry(profile, 0, gameMode, null));
+                }
+                case UPDATE_LATENCY -> {
+                    GameProfile profile = new GameProfile(buf.readUuid(), null);
+                    int latency = buf.readVarInt();
+                    entries.add(new PlayerListS2CPacket.Entry(profile, latency, null, null));
+                }
+                case UPDATE_DISPLAY_NAME -> {
+                    GameProfile profile = new GameProfile(buf.readUuid(), null);
+                    Text displayName = buf.readBoolean() ? buf.readText() : null;
+                    entries.add(new PlayerListS2CPacket.Entry(profile, 0, null, displayName));
+                }
+                case REMOVE_PLAYER -> {
+                    GameProfile profile = new GameProfile(buf.readUuid(), null);
+                    entries.add(new PlayerListS2CPacket.Entry(profile, 0, null, null));
+                }
                 }
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<PlayerListS2CPacket.Entry>>) (Class<?>) List.class,
                     PlayerListS2CPacket.Entry.class, entries);
             buf.applyPendingReads();
@@ -359,7 +428,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             for (int i = 0; i < numRecipeIdsToChange; i++) {
                 recipeIdsToChange.add(buf.readIdentifier());
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<Identifier>>) (Class<?>) List.class, Identifier.class,
                     recipeIdsToChange);
             if (action == UnlockRecipesS2CPacket.Action.INIT) {
@@ -368,7 +437,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
                 for (int i = 0; i < numRecipeIdsToInit; i++) {
                     recipeIdsToInit.add(buf.readIdentifier());
                 }
-                //noinspection unchecked
+                // noinspection unchecked
                 buf.pendingReadCollection((Class<List<Identifier>>) (Class<?>) List.class, Identifier.class,
                         recipeIdsToInit);
             }
@@ -399,7 +468,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             for (int i = 0; i < numPlayers; i++) {
                 players.add(buf.readString(40));
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<List<String>>) (Class<?>) List.class, String.class, players);
             buf.applyPendingReads();
         });
@@ -418,7 +487,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             for (int i = 0; i < numToRemove; i++) {
                 toRemove.add(buf.readIdentifier());
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection((Class<Collection<Identifier>>) (Class<?>) Collection.class, Identifier.class,
                     toRemove);
             int numToSetProgress = buf.readVarInt();
@@ -435,8 +504,9 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             for (int i = 0; i < numRecipes; i++) {
                 recipes.add(SynchronizeRecipesS2CPacket.readRecipe(buf));
             }
-            //noinspection unchecked
-            buf.pendingReadCollection((Class<List<Recipe<?>>>) (Class<?>) List.class, (Class<Recipe<?>>) (Class<?>) Recipe.class, recipes);
+            // noinspection unchecked
+            buf.pendingReadCollection((Class<List<Recipe<?>>>) (Class<?>) List.class,
+                    (Class<Recipe<?>>) (Class<?>) Recipe.class, recipes);
             buf.applyPendingReads();
         });
         ProtocolRegistry.registerOutboundTranslator(ClientSettingsC2SPacket.class, buf -> {
@@ -466,7 +536,8 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
     }
 
     private static void translateDimensionType(TransformerByteBuf buf) {
-        // TODO: move between the 1.17 and 1.18 protocol when 1.18 changes the world height
+        // TODO: move between the 1.17 and 1.18 protocol when 1.18 changes the world
+        // height
         var dimensionTypeCodecked = Utils.translateDimensionType(buf);
         if (dimensionTypeCodecked != null) {
             Supplier<DimensionType> oldSupplier = dimensionTypeCodecked.getValue();
@@ -501,17 +572,21 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
     @Override
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
-        insertAfter(packets, MapUpdateS2CPacket.class, PacketInfo.of(MapUpdateS2CPacket_1_16_5.class, MapUpdateS2CPacket_1_16_5::new));
+        insertAfter(packets, MapUpdateS2CPacket.class,
+                PacketInfo.of(MapUpdateS2CPacket_1_16_5.class, MapUpdateS2CPacket_1_16_5::new));
         remove(packets, MapUpdateS2CPacket.class);
         remove(packets, VibrationS2CPacket.class);
         remove(packets, ClearTitleS2CPacket.class);
         remove(packets, WorldBorderInitializeS2CPacket.class);
-        insertAfter(packets, EntityS2CPacket.Rotate.class, PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
-        insertAfter(packets, PlayerAbilitiesS2CPacket.class, PacketInfo.of(CombatEventS2CPacket_1_16_5.class, CombatEventS2CPacket_1_16_5::new));
+        insertAfter(packets, EntityS2CPacket.Rotate.class,
+                PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
+        insertAfter(packets, PlayerAbilitiesS2CPacket.class,
+                PacketInfo.of(CombatEventS2CPacket_1_16_5.class, CombatEventS2CPacket_1_16_5::new));
         remove(packets, EndCombatS2CPacket.class);
         remove(packets, EnterCombatS2CPacket.class);
         remove(packets, DeathMessageS2CPacket.class);
-        insertAfter(packets, SelectAdvancementTabS2CPacket.class, PacketInfo.of(WorldBorderS2CPacket_1_16_5.class, WorldBorderS2CPacket_1_16_5::new));
+        insertAfter(packets, SelectAdvancementTabS2CPacket.class,
+                PacketInfo.of(WorldBorderS2CPacket_1_16_5.class, WorldBorderS2CPacket_1_16_5::new));
         remove(packets, OverlayMessageS2CPacket.class);
         remove(packets, WorldBorderCenterChangedS2CPacket.class);
         remove(packets, WorldBorderInterpolateSizeS2CPacket.class);
@@ -519,11 +594,14 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         remove(packets, WorldBorderWarningTimeChangedS2CPacket.class);
         remove(packets, WorldBorderWarningBlocksChangedS2CPacket.class);
         remove(packets, SubtitleS2CPacket.class);
-        insertAfter(packets, WorldTimeUpdateS2CPacket.class, PacketInfo.of(TitleS2CPacket_1_16_5.class, TitleS2CPacket_1_16_5::new));
+        insertAfter(packets, WorldTimeUpdateS2CPacket.class,
+                PacketInfo.of(TitleS2CPacket_1_16_5.class, TitleS2CPacket_1_16_5::new));
         remove(packets, TitleS2CPacket.class);
         remove(packets, TitleFadeS2CPacket.class);
-        insertAfter(packets, CommandTreeS2CPacket.class, PacketInfo.of(AckScreenActionS2CPacket_1_16_5.class, AckScreenActionS2CPacket_1_16_5::new));
-        insertAfter(packets, EntityDestroyS2CPacket_1_17.class, PacketInfo.of(EntitiesDestroyS2CPacket.class, EntitiesDestroyS2CPacket::new));
+        insertAfter(packets, CommandTreeS2CPacket.class,
+                PacketInfo.of(AckScreenActionS2CPacket_1_16_5.class, AckScreenActionS2CPacket_1_16_5::new));
+        insertAfter(packets, EntityDestroyS2CPacket_1_17.class,
+                PacketInfo.of(EntitiesDestroyS2CPacket.class, EntitiesDestroyS2CPacket::new));
         remove(packets, EntityDestroyS2CPacket_1_17.class);
         remove(packets, PlayPingS2CPacket.class);
         return packets;
@@ -532,8 +610,10 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
     @Override
     public List<PacketInfo<?>> getServerboundPackets() {
         List<PacketInfo<?>> packets = super.getServerboundPackets();
-        insertAfter(packets, RequestCommandCompletionsC2SPacket.class, PacketInfo.of(AckScreenActionC2SPacket_1_16_5.class, AckScreenActionC2SPacket_1_16_5::new));
-        insertAfter(packets, ClickSlotC2SPacket.class, PacketInfo.of(ClickSlotC2SPacket_1_16_5.class, ClickSlotC2SPacket_1_16_5::new));
+        insertAfter(packets, RequestCommandCompletionsC2SPacket.class,
+                PacketInfo.of(AckScreenActionC2SPacket_1_16_5.class, AckScreenActionC2SPacket_1_16_5::new));
+        insertAfter(packets, ClickSlotC2SPacket.class,
+                PacketInfo.of(ClickSlotC2SPacket_1_16_5.class, ClickSlotC2SPacket_1_16_5::new));
         remove(packets, ClickSlotC2SPacket.class);
         remove(packets, PlayPongC2SPacket.class);
         return packets;
@@ -854,7 +934,8 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         insertAfter(registry, Items.ACACIA_PRESSURE_PLATE, Items.DARK_OAK_PRESSURE_PLATE, "dark_oak_pressure_plate");
         insertAfter(registry, Items.DARK_OAK_PRESSURE_PLATE, Items.CRIMSON_PRESSURE_PLATE, "crimson_pressure_plate");
         insertAfter(registry, Items.CRIMSON_PRESSURE_PLATE, Items.WARPED_PRESSURE_PLATE, "warped_pressure_plate");
-        insertAfter(registry, Items.WARPED_PRESSURE_PLATE, Items.POLISHED_BLACKSTONE_PRESSURE_PLATE, "polished_blackstone_pressure_plate");
+        insertAfter(registry, Items.WARPED_PRESSURE_PLATE, Items.POLISHED_BLACKSTONE_PRESSURE_PLATE,
+                "polished_blackstone_pressure_plate");
         insertAfter(registry, Items.POLISHED_BLACKSTONE_PRESSURE_PLATE, Items.REDSTONE_ORE, "redstone_ore");
         insertAfter(registry, Items.REDSTONE_ORE, Items.REDSTONE_TORCH, "redstone_torch");
         insertAfter(registry, Items.JACK_O_LANTERN, Items.OAK_TRAPDOOR, "oak_trapdoor");
@@ -886,8 +967,10 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         insertAfter(registry, Items.CRIMSON_BUTTON, Items.WARPED_BUTTON, "warped_button");
         insertAfter(registry, Items.WARPED_BUTTON, Items.POLISHED_BLACKSTONE_BUTTON, "polished_blackstone_button");
         insertAfter(registry, Items.DAMAGED_ANVIL, Items.TRAPPED_CHEST, "trapped_chest");
-        insertAfter(registry, Items.TRAPPED_CHEST, Items.LIGHT_WEIGHTED_PRESSURE_PLATE, "light_weighted_pressure_plate");
-        insertAfter(registry, Items.LIGHT_WEIGHTED_PRESSURE_PLATE, Items.HEAVY_WEIGHTED_PRESSURE_PLATE, "heavy_weighted_pressure_plate");
+        insertAfter(registry, Items.TRAPPED_CHEST, Items.LIGHT_WEIGHTED_PRESSURE_PLATE,
+                "light_weighted_pressure_plate");
+        insertAfter(registry, Items.LIGHT_WEIGHTED_PRESSURE_PLATE, Items.HEAVY_WEIGHTED_PRESSURE_PLATE,
+                "heavy_weighted_pressure_plate");
         insertAfter(registry, Items.HEAVY_WEIGHTED_PRESSURE_PLATE, Items.DAYLIGHT_DETECTOR, "daylight_detector");
         insertAfter(registry, Items.DAYLIGHT_DETECTOR, Items.REDSTONE_BLOCK, "redstone_block");
         insertAfter(registry, Items.REDSTONE_BLOCK, Items.NETHER_QUARTZ_ORE, "nether_quartz_ore");
@@ -1220,19 +1303,19 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         tags.add(BlockTags.DIRT, Blocks.DIRT, Blocks.GRASS_BLOCK, Blocks.PODZOL, Blocks.COARSE_DIRT, Blocks.MYCELIUM);
         tags.add(BlockTags.SNOW, Blocks.SNOW, Blocks.SNOW_BLOCK);
         tags.add(BlockTags.SMALL_DRIPLEAF_PLACEABLE, Blocks.CLAY);
-        tags.add(BlockTags.AXE_MINEABLE,
-                Blocks.NOTE_BLOCK, Blocks.ATTACHED_MELON_STEM, Blocks.ATTACHED_PUMPKIN_STEM, Blocks.BAMBOO, Blocks.BARREL,
-                Blocks.BEE_NEST, Blocks.BEEHIVE, Blocks.BEETROOTS, Blocks.BOOKSHELF, Blocks.BROWN_MUSHROOM_BLOCK,
-                Blocks.BROWN_MUSHROOM, Blocks.CAMPFIRE, Blocks.CARROTS, Blocks.CARTOGRAPHY_TABLE, Blocks.CARVED_PUMPKIN,
-                Blocks.CHEST, Blocks.CHORUS_FLOWER, Blocks.CHORUS_PLANT, Blocks.COCOA, Blocks.COMPOSTER,
-                Blocks.CRAFTING_TABLE, Blocks.CRIMSON_FUNGUS, Blocks.DAYLIGHT_DETECTOR, Blocks.DEAD_BUSH, Blocks.FERN,
-                Blocks.FLETCHING_TABLE, Blocks.GLOW_LICHEN, Blocks.GRASS, Blocks.JACK_O_LANTERN, Blocks.JUKEBOX,
-                Blocks.LADDER, Blocks.LARGE_FERN, Blocks.LECTERN, Blocks.LILY_PAD, Blocks.LOOM,
-                Blocks.MELON_STEM, Blocks.MELON, Blocks.MUSHROOM_STEM, Blocks.NETHER_WART, Blocks.POTATOES,
-                Blocks.PUMPKIN_STEM, Blocks.PUMPKIN, Blocks.RED_MUSHROOM_BLOCK, Blocks.RED_MUSHROOM, Blocks.SCAFFOLDING,
-                Blocks.SMITHING_TABLE, Blocks.SOUL_CAMPFIRE, Blocks.SUGAR_CANE, Blocks.SWEET_BERRY_BUSH, Blocks.TALL_GRASS,
-                Blocks.TRAPPED_CHEST, Blocks.TWISTING_VINES_PLANT, Blocks.TWISTING_VINES, Blocks.VINE, Blocks.WARPED_FUNGUS,
-                Blocks.WEEPING_VINES_PLANT, Blocks.WEEPING_VINES, Blocks.WHEAT);
+        tags.add(BlockTags.AXE_MINEABLE, Blocks.NOTE_BLOCK, Blocks.ATTACHED_MELON_STEM, Blocks.ATTACHED_PUMPKIN_STEM,
+                Blocks.BAMBOO, Blocks.BARREL, Blocks.BEE_NEST, Blocks.BEEHIVE, Blocks.BEETROOTS, Blocks.BOOKSHELF,
+                Blocks.BROWN_MUSHROOM_BLOCK, Blocks.BROWN_MUSHROOM, Blocks.CAMPFIRE, Blocks.CARROTS,
+                Blocks.CARTOGRAPHY_TABLE, Blocks.CARVED_PUMPKIN, Blocks.CHEST, Blocks.CHORUS_FLOWER,
+                Blocks.CHORUS_PLANT, Blocks.COCOA, Blocks.COMPOSTER, Blocks.CRAFTING_TABLE, Blocks.CRIMSON_FUNGUS,
+                Blocks.DAYLIGHT_DETECTOR, Blocks.DEAD_BUSH, Blocks.FERN, Blocks.FLETCHING_TABLE, Blocks.GLOW_LICHEN,
+                Blocks.GRASS, Blocks.JACK_O_LANTERN, Blocks.JUKEBOX, Blocks.LADDER, Blocks.LARGE_FERN, Blocks.LECTERN,
+                Blocks.LILY_PAD, Blocks.LOOM, Blocks.MELON_STEM, Blocks.MELON, Blocks.MUSHROOM_STEM, Blocks.NETHER_WART,
+                Blocks.POTATOES, Blocks.PUMPKIN_STEM, Blocks.PUMPKIN, Blocks.RED_MUSHROOM_BLOCK, Blocks.RED_MUSHROOM,
+                Blocks.SCAFFOLDING, Blocks.SMITHING_TABLE, Blocks.SOUL_CAMPFIRE, Blocks.SUGAR_CANE,
+                Blocks.SWEET_BERRY_BUSH, Blocks.TALL_GRASS, Blocks.TRAPPED_CHEST, Blocks.TWISTING_VINES_PLANT,
+                Blocks.TWISTING_VINES, Blocks.VINE, Blocks.WARPED_FUNGUS, Blocks.WEEPING_VINES_PLANT,
+                Blocks.WEEPING_VINES, Blocks.WHEAT);
         tags.addTag(BlockTags.AXE_MINEABLE, BlockTags.BANNERS);
         tags.addTag(BlockTags.AXE_MINEABLE, BlockTags.FENCE_GATES);
         tags.addTag(BlockTags.AXE_MINEABLE, BlockTags.FLOWERS);
@@ -1247,81 +1330,102 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         tags.addTag(BlockTags.AXE_MINEABLE, BlockTags.WOODEN_SLABS);
         tags.addTag(BlockTags.AXE_MINEABLE, BlockTags.WOODEN_STAIRS);
         tags.addTag(BlockTags.AXE_MINEABLE, BlockTags.WOODEN_TRAPDOORS);
-        tags.add(BlockTags.HOE_MINEABLE,
-                Blocks.NETHER_WART_BLOCK, Blocks.WARPED_WART_BLOCK, Blocks.HAY_BLOCK, Blocks.DRIED_KELP_BLOCK, Blocks.TARGET,
-                Blocks.SPONGE, Blocks.WET_SPONGE, Blocks.JUNGLE_LEAVES, Blocks.OAK_LEAVES, Blocks.SPRUCE_LEAVES,
-                Blocks.DARK_OAK_LEAVES, Blocks.ACACIA_LEAVES, Blocks.BIRCH_LEAVES);
-        tags.add(BlockTags.PICKAXE_MINEABLE,
-                Blocks.STONE, Blocks.GRANITE, Blocks.POLISHED_GRANITE, Blocks.DIORITE, Blocks.POLISHED_DIORITE,
-                Blocks.ANDESITE, Blocks.POLISHED_ANDESITE, Blocks.COBBLESTONE, Blocks.GOLD_ORE, Blocks.IRON_ORE,
-                Blocks.COAL_ORE, Blocks.NETHER_GOLD_ORE, Blocks.LAPIS_ORE, Blocks.LAPIS_BLOCK, Blocks.DISPENSER,
-                Blocks.SANDSTONE, Blocks.CHISELED_SANDSTONE, Blocks.CUT_SANDSTONE, Blocks.GOLD_BLOCK, Blocks.IRON_BLOCK,
-                Blocks.BRICKS, Blocks.MOSSY_COBBLESTONE, Blocks.OBSIDIAN, Blocks.SPAWNER, Blocks.DIAMOND_ORE,
-                Blocks.DIAMOND_BLOCK, Blocks.FURNACE, Blocks.COBBLESTONE_STAIRS, Blocks.STONE_PRESSURE_PLATE, Blocks.IRON_DOOR,
-                Blocks.REDSTONE_ORE, Blocks.NETHERRACK, Blocks.BASALT, Blocks.POLISHED_BASALT, Blocks.STONE_BRICKS,
-                Blocks.MOSSY_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.CHISELED_STONE_BRICKS, Blocks.IRON_BARS, Blocks.CHAIN,
-                Blocks.BRICK_STAIRS, Blocks.STONE_BRICK_STAIRS, Blocks.NETHER_BRICKS, Blocks.NETHER_BRICK_FENCE, Blocks.NETHER_BRICK_STAIRS,
-                Blocks.ENCHANTING_TABLE, Blocks.BREWING_STAND, Blocks.END_STONE, Blocks.SANDSTONE_STAIRS, Blocks.EMERALD_ORE,
-                Blocks.ENDER_CHEST, Blocks.EMERALD_BLOCK, Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE, Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE, Blocks.REDSTONE_BLOCK,
-                Blocks.NETHER_QUARTZ_ORE, Blocks.HOPPER, Blocks.QUARTZ_BLOCK, Blocks.CHISELED_QUARTZ_BLOCK, Blocks.QUARTZ_PILLAR,
-                Blocks.QUARTZ_STAIRS, Blocks.DROPPER, Blocks.WHITE_TERRACOTTA, Blocks.ORANGE_TERRACOTTA, Blocks.MAGENTA_TERRACOTTA,
-                Blocks.LIGHT_BLUE_TERRACOTTA, Blocks.YELLOW_TERRACOTTA, Blocks.LIME_TERRACOTTA, Blocks.PINK_TERRACOTTA, Blocks.GRAY_TERRACOTTA,
-                Blocks.LIGHT_GRAY_TERRACOTTA, Blocks.CYAN_TERRACOTTA, Blocks.PURPLE_TERRACOTTA, Blocks.BLUE_TERRACOTTA, Blocks.BROWN_TERRACOTTA,
-                Blocks.GREEN_TERRACOTTA, Blocks.RED_TERRACOTTA, Blocks.BLACK_TERRACOTTA, Blocks.IRON_TRAPDOOR, Blocks.PRISMARINE,
-                Blocks.PRISMARINE_BRICKS, Blocks.DARK_PRISMARINE, Blocks.PRISMARINE_STAIRS, Blocks.PRISMARINE_BRICK_STAIRS, Blocks.DARK_PRISMARINE_STAIRS,
-                Blocks.PRISMARINE_SLAB, Blocks.PRISMARINE_BRICK_SLAB, Blocks.DARK_PRISMARINE_SLAB, Blocks.TERRACOTTA, Blocks.COAL_BLOCK,
-                Blocks.RED_SANDSTONE, Blocks.CHISELED_RED_SANDSTONE, Blocks.CUT_RED_SANDSTONE, Blocks.RED_SANDSTONE_STAIRS, Blocks.STONE_SLAB,
-                Blocks.SMOOTH_STONE_SLAB, Blocks.SANDSTONE_SLAB, Blocks.CUT_SANDSTONE_SLAB, Blocks.PETRIFIED_OAK_SLAB, Blocks.COBBLESTONE_SLAB,
-                Blocks.BRICK_SLAB, Blocks.STONE_BRICK_SLAB, Blocks.NETHER_BRICK_SLAB, Blocks.QUARTZ_SLAB, Blocks.RED_SANDSTONE_SLAB,
-                Blocks.CUT_RED_SANDSTONE_SLAB, Blocks.PURPUR_SLAB, Blocks.SMOOTH_STONE, Blocks.SMOOTH_SANDSTONE, Blocks.SMOOTH_QUARTZ,
-                Blocks.SMOOTH_RED_SANDSTONE, Blocks.PURPUR_BLOCK, Blocks.PURPUR_PILLAR, Blocks.PURPUR_STAIRS, Blocks.END_STONE_BRICKS,
-                Blocks.MAGMA_BLOCK, Blocks.RED_NETHER_BRICKS, Blocks.BONE_BLOCK, Blocks.OBSERVER, Blocks.WHITE_GLAZED_TERRACOTTA,
-                Blocks.ORANGE_GLAZED_TERRACOTTA, Blocks.MAGENTA_GLAZED_TERRACOTTA, Blocks.LIGHT_BLUE_GLAZED_TERRACOTTA, Blocks.YELLOW_GLAZED_TERRACOTTA, Blocks.LIME_GLAZED_TERRACOTTA,
-                Blocks.PINK_GLAZED_TERRACOTTA, Blocks.GRAY_GLAZED_TERRACOTTA, Blocks.LIGHT_GRAY_GLAZED_TERRACOTTA, Blocks.CYAN_GLAZED_TERRACOTTA, Blocks.PURPLE_GLAZED_TERRACOTTA,
-                Blocks.BLUE_GLAZED_TERRACOTTA, Blocks.BROWN_GLAZED_TERRACOTTA, Blocks.GREEN_GLAZED_TERRACOTTA, Blocks.RED_GLAZED_TERRACOTTA, Blocks.BLACK_GLAZED_TERRACOTTA,
-                Blocks.WHITE_CONCRETE, Blocks.ORANGE_CONCRETE, Blocks.MAGENTA_CONCRETE, Blocks.LIGHT_BLUE_CONCRETE, Blocks.YELLOW_CONCRETE,
-                Blocks.LIME_CONCRETE, Blocks.PINK_CONCRETE, Blocks.GRAY_CONCRETE, Blocks.LIGHT_GRAY_CONCRETE, Blocks.CYAN_CONCRETE,
-                Blocks.PURPLE_CONCRETE, Blocks.BLUE_CONCRETE, Blocks.BROWN_CONCRETE, Blocks.GREEN_CONCRETE, Blocks.RED_CONCRETE,
-                Blocks.BLACK_CONCRETE, Blocks.DEAD_TUBE_CORAL_BLOCK, Blocks.DEAD_BRAIN_CORAL_BLOCK, Blocks.DEAD_BUBBLE_CORAL_BLOCK, Blocks.DEAD_FIRE_CORAL_BLOCK,
-                Blocks.DEAD_HORN_CORAL_BLOCK, Blocks.TUBE_CORAL_BLOCK, Blocks.BRAIN_CORAL_BLOCK, Blocks.BUBBLE_CORAL_BLOCK, Blocks.FIRE_CORAL_BLOCK,
-                Blocks.HORN_CORAL_BLOCK, Blocks.DEAD_TUBE_CORAL, Blocks.DEAD_BRAIN_CORAL, Blocks.DEAD_BUBBLE_CORAL, Blocks.DEAD_FIRE_CORAL,
-                Blocks.DEAD_HORN_CORAL, Blocks.DEAD_TUBE_CORAL_FAN, Blocks.DEAD_BRAIN_CORAL_FAN, Blocks.DEAD_BUBBLE_CORAL_FAN, Blocks.DEAD_FIRE_CORAL_FAN,
-                Blocks.DEAD_HORN_CORAL_FAN, Blocks.DEAD_TUBE_CORAL_WALL_FAN, Blocks.DEAD_BRAIN_CORAL_WALL_FAN, Blocks.DEAD_BUBBLE_CORAL_WALL_FAN, Blocks.DEAD_FIRE_CORAL_WALL_FAN,
-                Blocks.DEAD_HORN_CORAL_WALL_FAN, Blocks.POLISHED_GRANITE_STAIRS, Blocks.SMOOTH_RED_SANDSTONE_STAIRS, Blocks.MOSSY_STONE_BRICK_STAIRS, Blocks.POLISHED_DIORITE_STAIRS,
-                Blocks.MOSSY_COBBLESTONE_STAIRS, Blocks.END_STONE_BRICK_STAIRS, Blocks.STONE_STAIRS, Blocks.SMOOTH_SANDSTONE_STAIRS, Blocks.SMOOTH_QUARTZ_STAIRS,
-                Blocks.GRANITE_STAIRS, Blocks.ANDESITE_STAIRS, Blocks.RED_NETHER_BRICK_STAIRS, Blocks.POLISHED_ANDESITE_STAIRS, Blocks.DIORITE_STAIRS,
-                Blocks.POLISHED_GRANITE_SLAB, Blocks.SMOOTH_RED_SANDSTONE_SLAB, Blocks.MOSSY_STONE_BRICK_SLAB, Blocks.POLISHED_DIORITE_SLAB, Blocks.MOSSY_COBBLESTONE_SLAB,
-                Blocks.END_STONE_BRICK_SLAB, Blocks.SMOOTH_SANDSTONE_SLAB, Blocks.SMOOTH_QUARTZ_SLAB, Blocks.GRANITE_SLAB, Blocks.ANDESITE_SLAB,
-                Blocks.RED_NETHER_BRICK_SLAB, Blocks.POLISHED_ANDESITE_SLAB, Blocks.DIORITE_SLAB, Blocks.SMOKER, Blocks.BLAST_FURNACE,
-                Blocks.GRINDSTONE, Blocks.STONECUTTER, Blocks.BELL, Blocks.LANTERN, Blocks.SOUL_LANTERN,
-                Blocks.WARPED_NYLIUM, Blocks.CRIMSON_NYLIUM, Blocks.NETHERITE_BLOCK, Blocks.ANCIENT_DEBRIS, Blocks.CRYING_OBSIDIAN,
-                Blocks.RESPAWN_ANCHOR, Blocks.LODESTONE, Blocks.BLACKSTONE, Blocks.BLACKSTONE_STAIRS, Blocks.BLACKSTONE_SLAB,
-                Blocks.POLISHED_BLACKSTONE, Blocks.POLISHED_BLACKSTONE_BRICKS, Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS, Blocks.CHISELED_POLISHED_BLACKSTONE, Blocks.POLISHED_BLACKSTONE_BRICK_SLAB,
-                Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS, Blocks.GILDED_BLACKSTONE, Blocks.POLISHED_BLACKSTONE_STAIRS, Blocks.POLISHED_BLACKSTONE_SLAB, Blocks.POLISHED_BLACKSTONE_PRESSURE_PLATE,
-                Blocks.CHISELED_NETHER_BRICKS, Blocks.CRACKED_NETHER_BRICKS, Blocks.QUARTZ_BRICKS, Blocks.ICE, Blocks.PACKED_ICE,
-                Blocks.BLUE_ICE, Blocks.STONE_BUTTON, Blocks.PISTON, Blocks.STICKY_PISTON, Blocks.PISTON_HEAD,
-                Blocks.INFESTED_COBBLESTONE, Blocks.INFESTED_CHISELED_STONE_BRICKS, Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.INFESTED_DEEPSLATE, Blocks.INFESTED_STONE,
-                Blocks.INFESTED_MOSSY_STONE_BRICKS, Blocks.INFESTED_STONE_BRICKS);
+        tags.add(BlockTags.HOE_MINEABLE, Blocks.NETHER_WART_BLOCK, Blocks.WARPED_WART_BLOCK, Blocks.HAY_BLOCK,
+                Blocks.DRIED_KELP_BLOCK, Blocks.TARGET, Blocks.SPONGE, Blocks.WET_SPONGE, Blocks.JUNGLE_LEAVES,
+                Blocks.OAK_LEAVES, Blocks.SPRUCE_LEAVES, Blocks.DARK_OAK_LEAVES, Blocks.ACACIA_LEAVES,
+                Blocks.BIRCH_LEAVES);
+        tags.add(BlockTags.PICKAXE_MINEABLE, Blocks.STONE, Blocks.GRANITE, Blocks.POLISHED_GRANITE, Blocks.DIORITE,
+                Blocks.POLISHED_DIORITE, Blocks.ANDESITE, Blocks.POLISHED_ANDESITE, Blocks.COBBLESTONE, Blocks.GOLD_ORE,
+                Blocks.IRON_ORE, Blocks.COAL_ORE, Blocks.NETHER_GOLD_ORE, Blocks.LAPIS_ORE, Blocks.LAPIS_BLOCK,
+                Blocks.DISPENSER, Blocks.SANDSTONE, Blocks.CHISELED_SANDSTONE, Blocks.CUT_SANDSTONE, Blocks.GOLD_BLOCK,
+                Blocks.IRON_BLOCK, Blocks.BRICKS, Blocks.MOSSY_COBBLESTONE, Blocks.OBSIDIAN, Blocks.SPAWNER,
+                Blocks.DIAMOND_ORE, Blocks.DIAMOND_BLOCK, Blocks.FURNACE, Blocks.COBBLESTONE_STAIRS,
+                Blocks.STONE_PRESSURE_PLATE, Blocks.IRON_DOOR, Blocks.REDSTONE_ORE, Blocks.NETHERRACK, Blocks.BASALT,
+                Blocks.POLISHED_BASALT, Blocks.STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS,
+                Blocks.CHISELED_STONE_BRICKS, Blocks.IRON_BARS, Blocks.CHAIN, Blocks.BRICK_STAIRS,
+                Blocks.STONE_BRICK_STAIRS, Blocks.NETHER_BRICKS, Blocks.NETHER_BRICK_FENCE, Blocks.NETHER_BRICK_STAIRS,
+                Blocks.ENCHANTING_TABLE, Blocks.BREWING_STAND, Blocks.END_STONE, Blocks.SANDSTONE_STAIRS,
+                Blocks.EMERALD_ORE, Blocks.ENDER_CHEST, Blocks.EMERALD_BLOCK, Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE,
+                Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE, Blocks.REDSTONE_BLOCK, Blocks.NETHER_QUARTZ_ORE, Blocks.HOPPER,
+                Blocks.QUARTZ_BLOCK, Blocks.CHISELED_QUARTZ_BLOCK, Blocks.QUARTZ_PILLAR, Blocks.QUARTZ_STAIRS,
+                Blocks.DROPPER, Blocks.WHITE_TERRACOTTA, Blocks.ORANGE_TERRACOTTA, Blocks.MAGENTA_TERRACOTTA,
+                Blocks.LIGHT_BLUE_TERRACOTTA, Blocks.YELLOW_TERRACOTTA, Blocks.LIME_TERRACOTTA, Blocks.PINK_TERRACOTTA,
+                Blocks.GRAY_TERRACOTTA, Blocks.LIGHT_GRAY_TERRACOTTA, Blocks.CYAN_TERRACOTTA, Blocks.PURPLE_TERRACOTTA,
+                Blocks.BLUE_TERRACOTTA, Blocks.BROWN_TERRACOTTA, Blocks.GREEN_TERRACOTTA, Blocks.RED_TERRACOTTA,
+                Blocks.BLACK_TERRACOTTA, Blocks.IRON_TRAPDOOR, Blocks.PRISMARINE, Blocks.PRISMARINE_BRICKS,
+                Blocks.DARK_PRISMARINE, Blocks.PRISMARINE_STAIRS, Blocks.PRISMARINE_BRICK_STAIRS,
+                Blocks.DARK_PRISMARINE_STAIRS, Blocks.PRISMARINE_SLAB, Blocks.PRISMARINE_BRICK_SLAB,
+                Blocks.DARK_PRISMARINE_SLAB, Blocks.TERRACOTTA, Blocks.COAL_BLOCK, Blocks.RED_SANDSTONE,
+                Blocks.CHISELED_RED_SANDSTONE, Blocks.CUT_RED_SANDSTONE, Blocks.RED_SANDSTONE_STAIRS, Blocks.STONE_SLAB,
+                Blocks.SMOOTH_STONE_SLAB, Blocks.SANDSTONE_SLAB, Blocks.CUT_SANDSTONE_SLAB, Blocks.PETRIFIED_OAK_SLAB,
+                Blocks.COBBLESTONE_SLAB, Blocks.BRICK_SLAB, Blocks.STONE_BRICK_SLAB, Blocks.NETHER_BRICK_SLAB,
+                Blocks.QUARTZ_SLAB, Blocks.RED_SANDSTONE_SLAB, Blocks.CUT_RED_SANDSTONE_SLAB, Blocks.PURPUR_SLAB,
+                Blocks.SMOOTH_STONE, Blocks.SMOOTH_SANDSTONE, Blocks.SMOOTH_QUARTZ, Blocks.SMOOTH_RED_SANDSTONE,
+                Blocks.PURPUR_BLOCK, Blocks.PURPUR_PILLAR, Blocks.PURPUR_STAIRS, Blocks.END_STONE_BRICKS,
+                Blocks.MAGMA_BLOCK, Blocks.RED_NETHER_BRICKS, Blocks.BONE_BLOCK, Blocks.OBSERVER,
+                Blocks.WHITE_GLAZED_TERRACOTTA, Blocks.ORANGE_GLAZED_TERRACOTTA, Blocks.MAGENTA_GLAZED_TERRACOTTA,
+                Blocks.LIGHT_BLUE_GLAZED_TERRACOTTA, Blocks.YELLOW_GLAZED_TERRACOTTA, Blocks.LIME_GLAZED_TERRACOTTA,
+                Blocks.PINK_GLAZED_TERRACOTTA, Blocks.GRAY_GLAZED_TERRACOTTA, Blocks.LIGHT_GRAY_GLAZED_TERRACOTTA,
+                Blocks.CYAN_GLAZED_TERRACOTTA, Blocks.PURPLE_GLAZED_TERRACOTTA, Blocks.BLUE_GLAZED_TERRACOTTA,
+                Blocks.BROWN_GLAZED_TERRACOTTA, Blocks.GREEN_GLAZED_TERRACOTTA, Blocks.RED_GLAZED_TERRACOTTA,
+                Blocks.BLACK_GLAZED_TERRACOTTA, Blocks.WHITE_CONCRETE, Blocks.ORANGE_CONCRETE, Blocks.MAGENTA_CONCRETE,
+                Blocks.LIGHT_BLUE_CONCRETE, Blocks.YELLOW_CONCRETE, Blocks.LIME_CONCRETE, Blocks.PINK_CONCRETE,
+                Blocks.GRAY_CONCRETE, Blocks.LIGHT_GRAY_CONCRETE, Blocks.CYAN_CONCRETE, Blocks.PURPLE_CONCRETE,
+                Blocks.BLUE_CONCRETE, Blocks.BROWN_CONCRETE, Blocks.GREEN_CONCRETE, Blocks.RED_CONCRETE,
+                Blocks.BLACK_CONCRETE, Blocks.DEAD_TUBE_CORAL_BLOCK, Blocks.DEAD_BRAIN_CORAL_BLOCK,
+                Blocks.DEAD_BUBBLE_CORAL_BLOCK, Blocks.DEAD_FIRE_CORAL_BLOCK, Blocks.DEAD_HORN_CORAL_BLOCK,
+                Blocks.TUBE_CORAL_BLOCK, Blocks.BRAIN_CORAL_BLOCK, Blocks.BUBBLE_CORAL_BLOCK, Blocks.FIRE_CORAL_BLOCK,
+                Blocks.HORN_CORAL_BLOCK, Blocks.DEAD_TUBE_CORAL, Blocks.DEAD_BRAIN_CORAL, Blocks.DEAD_BUBBLE_CORAL,
+                Blocks.DEAD_FIRE_CORAL, Blocks.DEAD_HORN_CORAL, Blocks.DEAD_TUBE_CORAL_FAN, Blocks.DEAD_BRAIN_CORAL_FAN,
+                Blocks.DEAD_BUBBLE_CORAL_FAN, Blocks.DEAD_FIRE_CORAL_FAN, Blocks.DEAD_HORN_CORAL_FAN,
+                Blocks.DEAD_TUBE_CORAL_WALL_FAN, Blocks.DEAD_BRAIN_CORAL_WALL_FAN, Blocks.DEAD_BUBBLE_CORAL_WALL_FAN,
+                Blocks.DEAD_FIRE_CORAL_WALL_FAN, Blocks.DEAD_HORN_CORAL_WALL_FAN, Blocks.POLISHED_GRANITE_STAIRS,
+                Blocks.SMOOTH_RED_SANDSTONE_STAIRS, Blocks.MOSSY_STONE_BRICK_STAIRS, Blocks.POLISHED_DIORITE_STAIRS,
+                Blocks.MOSSY_COBBLESTONE_STAIRS, Blocks.END_STONE_BRICK_STAIRS, Blocks.STONE_STAIRS,
+                Blocks.SMOOTH_SANDSTONE_STAIRS, Blocks.SMOOTH_QUARTZ_STAIRS, Blocks.GRANITE_STAIRS,
+                Blocks.ANDESITE_STAIRS, Blocks.RED_NETHER_BRICK_STAIRS, Blocks.POLISHED_ANDESITE_STAIRS,
+                Blocks.DIORITE_STAIRS, Blocks.POLISHED_GRANITE_SLAB, Blocks.SMOOTH_RED_SANDSTONE_SLAB,
+                Blocks.MOSSY_STONE_BRICK_SLAB, Blocks.POLISHED_DIORITE_SLAB, Blocks.MOSSY_COBBLESTONE_SLAB,
+                Blocks.END_STONE_BRICK_SLAB, Blocks.SMOOTH_SANDSTONE_SLAB, Blocks.SMOOTH_QUARTZ_SLAB,
+                Blocks.GRANITE_SLAB, Blocks.ANDESITE_SLAB, Blocks.RED_NETHER_BRICK_SLAB, Blocks.POLISHED_ANDESITE_SLAB,
+                Blocks.DIORITE_SLAB, Blocks.SMOKER, Blocks.BLAST_FURNACE, Blocks.GRINDSTONE, Blocks.STONECUTTER,
+                Blocks.BELL, Blocks.LANTERN, Blocks.SOUL_LANTERN, Blocks.WARPED_NYLIUM, Blocks.CRIMSON_NYLIUM,
+                Blocks.NETHERITE_BLOCK, Blocks.ANCIENT_DEBRIS, Blocks.CRYING_OBSIDIAN, Blocks.RESPAWN_ANCHOR,
+                Blocks.LODESTONE, Blocks.BLACKSTONE, Blocks.BLACKSTONE_STAIRS, Blocks.BLACKSTONE_SLAB,
+                Blocks.POLISHED_BLACKSTONE, Blocks.POLISHED_BLACKSTONE_BRICKS,
+                Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS, Blocks.CHISELED_POLISHED_BLACKSTONE,
+                Blocks.POLISHED_BLACKSTONE_BRICK_SLAB, Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS,
+                Blocks.GILDED_BLACKSTONE, Blocks.POLISHED_BLACKSTONE_STAIRS, Blocks.POLISHED_BLACKSTONE_SLAB,
+                Blocks.POLISHED_BLACKSTONE_PRESSURE_PLATE, Blocks.CHISELED_NETHER_BRICKS, Blocks.CRACKED_NETHER_BRICKS,
+                Blocks.QUARTZ_BRICKS, Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.STONE_BUTTON,
+                Blocks.PISTON, Blocks.STICKY_PISTON, Blocks.PISTON_HEAD, Blocks.INFESTED_COBBLESTONE,
+                Blocks.INFESTED_CHISELED_STONE_BRICKS, Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.INFESTED_DEEPSLATE,
+                Blocks.INFESTED_STONE, Blocks.INFESTED_MOSSY_STONE_BRICKS, Blocks.INFESTED_STONE_BRICKS);
         tags.addTag(BlockTags.PICKAXE_MINEABLE, BlockTags.WALLS);
         tags.addTag(BlockTags.PICKAXE_MINEABLE, BlockTags.SHULKER_BOXES);
         tags.addTag(BlockTags.PICKAXE_MINEABLE, BlockTags.ANVIL);
         tags.addTag(BlockTags.PICKAXE_MINEABLE, BlockTags.CAULDRONS);
         tags.addTag(BlockTags.PICKAXE_MINEABLE, BlockTags.RAILS);
-        tags.add(BlockTags.SHOVEL_MINEABLE,
-                Blocks.CLAY, Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.PODZOL, Blocks.FARMLAND,
-                Blocks.GRASS_BLOCK, Blocks.GRAVEL, Blocks.MYCELIUM, Blocks.SAND, Blocks.RED_SAND,
+        tags.add(BlockTags.SHOVEL_MINEABLE, Blocks.CLAY, Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.PODZOL,
+                Blocks.FARMLAND, Blocks.GRASS_BLOCK, Blocks.GRAVEL, Blocks.MYCELIUM, Blocks.SAND, Blocks.RED_SAND,
                 Blocks.SNOW_BLOCK, Blocks.SNOW, Blocks.SOUL_SAND, Blocks.DIRT_PATH, Blocks.WHITE_CONCRETE_POWDER,
-                Blocks.ORANGE_CONCRETE_POWDER, Blocks.MAGENTA_CONCRETE_POWDER, Blocks.LIGHT_BLUE_CONCRETE_POWDER, Blocks.YELLOW_CONCRETE_POWDER, Blocks.LIME_CONCRETE_POWDER,
-                Blocks.PINK_CONCRETE_POWDER, Blocks.GRAY_CONCRETE_POWDER, Blocks.LIGHT_GRAY_CONCRETE_POWDER, Blocks.CYAN_CONCRETE_POWDER, Blocks.PURPLE_CONCRETE_POWDER,
-                Blocks.BLUE_CONCRETE_POWDER, Blocks.BROWN_CONCRETE_POWDER, Blocks.GREEN_CONCRETE_POWDER, Blocks.RED_CONCRETE_POWDER, Blocks.BLACK_CONCRETE_POWDER,
+                Blocks.ORANGE_CONCRETE_POWDER, Blocks.MAGENTA_CONCRETE_POWDER, Blocks.LIGHT_BLUE_CONCRETE_POWDER,
+                Blocks.YELLOW_CONCRETE_POWDER, Blocks.LIME_CONCRETE_POWDER, Blocks.PINK_CONCRETE_POWDER,
+                Blocks.GRAY_CONCRETE_POWDER, Blocks.LIGHT_GRAY_CONCRETE_POWDER, Blocks.CYAN_CONCRETE_POWDER,
+                Blocks.PURPLE_CONCRETE_POWDER, Blocks.BLUE_CONCRETE_POWDER, Blocks.BROWN_CONCRETE_POWDER,
+                Blocks.GREEN_CONCRETE_POWDER, Blocks.RED_CONCRETE_POWDER, Blocks.BLACK_CONCRETE_POWDER,
                 Blocks.SOUL_SOIL);
         tags.add(BlockTags.NEEDS_STONE_TOOL, Blocks.IRON_BLOCK, Blocks.IRON_ORE, Blocks.LAPIS_BLOCK, Blocks.LAPIS_ORE);
-        tags.add(BlockTags.NEEDS_IRON_TOOL, Blocks.DIAMOND_BLOCK, Blocks.DIAMOND_ORE, Blocks.EMERALD_ORE, Blocks.EMERALD_BLOCK, Blocks.GOLD_BLOCK, Blocks.GOLD_ORE, Blocks.REDSTONE_ORE);
-        tags.add(BlockTags.NEEDS_DIAMOND_TOOL, Blocks.OBSIDIAN, Blocks.CRYING_OBSIDIAN, Blocks.NETHERITE_BLOCK, Blocks.RESPAWN_ANCHOR, Blocks.ANCIENT_DEBRIS);
-        tags.add(BlockTags.FEATURES_CANNOT_REPLACE, Blocks.BEDROCK, Blocks.SPAWNER, Blocks.CHEST, Blocks.END_PORTAL_FRAME);
+        tags.add(BlockTags.NEEDS_IRON_TOOL, Blocks.DIAMOND_BLOCK, Blocks.DIAMOND_ORE, Blocks.EMERALD_ORE,
+                Blocks.EMERALD_BLOCK, Blocks.GOLD_BLOCK, Blocks.GOLD_ORE, Blocks.REDSTONE_ORE);
+        tags.add(BlockTags.NEEDS_DIAMOND_TOOL, Blocks.OBSIDIAN, Blocks.CRYING_OBSIDIAN, Blocks.NETHERITE_BLOCK,
+                Blocks.RESPAWN_ANCHOR, Blocks.ANCIENT_DEBRIS);
+        tags.add(BlockTags.FEATURES_CANNOT_REPLACE, Blocks.BEDROCK, Blocks.SPAWNER, Blocks.CHEST,
+                Blocks.END_PORTAL_FRAME);
         tags.addTag(BlockTags.LAVA_POOL_STONE_CANNOT_REPLACE, BlockTags.FEATURES_CANNOT_REPLACE);
         tags.addTag(BlockTags.LAVA_POOL_STONE_CANNOT_REPLACE, BlockTags.LEAVES);
-        tags.add(BlockTags.GEODE_INVALID_BLOCKS, Blocks.BEDROCK, Blocks.WATER, Blocks.LAVA, Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);
+        tags.add(BlockTags.GEODE_INVALID_BLOCKS, Blocks.BEDROCK, Blocks.WATER, Blocks.LAVA, Blocks.ICE,
+                Blocks.PACKED_ICE, Blocks.BLUE_ICE);
         super.addExtraBlockTags(tags);
     }
 
@@ -1330,7 +1434,8 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         tags.add(ItemTags.IGNORED_BY_PIGLIN_BABIES, Items.LEATHER);
         tags.add(ItemTags.PIGLIN_FOOD, Items.PORKCHOP, Items.COOKED_PORKCHOP);
         copyBlocks(tags, blockTags, ItemTags.CANDLES, BlockTags.CANDLES);
-        tags.add(ItemTags.FREEZE_IMMUNE_WEARABLES, Items.LEATHER_BOOTS, Items.LEATHER_LEGGINGS, Items.LEATHER_CHESTPLATE, Items.LEATHER_HELMET, Items.LEATHER_HORSE_ARMOR);
+        tags.add(ItemTags.FREEZE_IMMUNE_WEARABLES, Items.LEATHER_BOOTS, Items.LEATHER_LEGGINGS,
+                Items.LEATHER_CHESTPLATE, Items.LEATHER_HELMET, Items.LEATHER_HORSE_ARMOR);
         tags.add(ItemTags.AXOLOTL_TEMPT_ITEMS, Items.TROPICAL_FISH, Items.TROPICAL_FISH_BUCKET);
         copyBlocks(tags, blockTags, ItemTags.OCCLUDES_VIBRATION_SIGNALS, BlockTags.OCCLUDES_VIBRATION_SIGNALS);
         tags.add(ItemTags.FOX_FOOD, Items.SWEET_BERRIES);
@@ -1341,17 +1446,22 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         copyBlocks(tags, blockTags, ItemTags.COAL_ORES, BlockTags.COAL_ORES);
         copyBlocks(tags, blockTags, ItemTags.EMERALD_ORES, BlockTags.EMERALD_ORES);
         copyBlocks(tags, blockTags, ItemTags.COPPER_ORES, BlockTags.COPPER_ORES);
-        tags.add(ItemTags.CLUSTER_MAX_HARVESTABLES, Items.DIAMOND_PICKAXE, Items.GOLDEN_PICKAXE, Items.IRON_PICKAXE, Items.NETHERITE_PICKAXE, Items.STONE_PICKAXE, Items.WOODEN_PICKAXE);
+        tags.add(ItemTags.CLUSTER_MAX_HARVESTABLES, Items.DIAMOND_PICKAXE, Items.GOLDEN_PICKAXE, Items.IRON_PICKAXE,
+                Items.NETHERITE_PICKAXE, Items.STONE_PICKAXE, Items.WOODEN_PICKAXE);
         super.addExtraItemTags(tags, blockTags);
     }
 
     @Override
     public void addExtraEntityTags(TagRegistry<EntityType<?>> tags) {
-        tags.add(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS, EntityType.RABBIT, EntityType.ENDERMITE, EntityType.SILVERFISH);
-        tags.add(EntityTypeTags.AXOLOTL_HUNT_TARGETS, EntityType.TROPICAL_FISH, EntityType.PUFFERFISH, EntityType.SALMON, EntityType.COD, EntityType.SQUID, EntityType.GLOW_SQUID);
-        tags.add(EntityTypeTags.AXOLOTL_ALWAYS_HOSTILES, EntityType.DROWNED, EntityType.GUARDIAN, EntityType.ELDER_GUARDIAN);
+        tags.add(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS, EntityType.RABBIT, EntityType.ENDERMITE,
+                EntityType.SILVERFISH);
+        tags.add(EntityTypeTags.AXOLOTL_HUNT_TARGETS, EntityType.TROPICAL_FISH, EntityType.PUFFERFISH,
+                EntityType.SALMON, EntityType.COD, EntityType.SQUID, EntityType.GLOW_SQUID);
+        tags.add(EntityTypeTags.AXOLOTL_ALWAYS_HOSTILES, EntityType.DROWNED, EntityType.GUARDIAN,
+                EntityType.ELDER_GUARDIAN);
         tags.add(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES, EntityType.STRIDER, EntityType.BLAZE, EntityType.MAGMA_CUBE);
-        tags.add(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES, EntityType.STRAY, EntityType.POLAR_BEAR, EntityType.SNOW_GOLEM, EntityType.WITHER);
+        tags.add(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES, EntityType.STRAY, EntityType.POLAR_BEAR,
+                EntityType.SNOW_GOLEM, EntityType.WITHER);
         super.addExtraEntityTags(tags);
     }
 
@@ -1365,7 +1475,9 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
     @Override
     public void preAcceptEntityData(Class<? extends Entity> clazz, TrackedData<?> data) {
         if (clazz == ShulkerEntity.class && data == ShulkerEntityAccessor.getPeekAmount()) {
-            DataTrackerManager.registerOldTrackedData(ShulkerEntity.class, OLD_SHULKER_ATTACHED_POSITION, Optional.empty(), (entity, pos) -> {});
+            DataTrackerManager.registerOldTrackedData(ShulkerEntity.class, OLD_SHULKER_ATTACHED_POSITION,
+                    Optional.empty(), (entity, pos) -> {
+                    });
         }
         super.preAcceptEntityData(clazz, data);
     }

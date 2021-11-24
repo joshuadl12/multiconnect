@@ -16,19 +16,9 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public class OutputRegistryTests {
-    private static final Registry<?>[] REGISTRIES = {
-            Registry.BLOCK,
-            Registry.ITEM,
-            Registry.ENCHANTMENT,
-            Registry.ENTITY_TYPE,
-            Registry.SOUND_EVENT,
-            Registry.POTION,
-            Registry.PARTICLE_TYPE,
-            Registry.BLOCK_ENTITY_TYPE,
-            Registry.SCREEN_HANDLER,
-            Registry.RECIPE_SERIALIZER,
-            Registry.CUSTOM_STAT
-    };
+    private static final Registry<?>[] REGISTRIES = { Registry.BLOCK, Registry.ITEM, Registry.ENCHANTMENT,
+            Registry.ENTITY_TYPE, Registry.SOUND_EVENT, Registry.POTION, Registry.PARTICLE_TYPE,
+            Registry.BLOCK_ENTITY_TYPE, Registry.SCREEN_HANDLER, Registry.RECIPE_SERIALIZER, Registry.CUSTOM_STAT };
 
     public static void main(String[] args) throws IOException {
         Scanner scan = new Scanner(System.in);
@@ -38,7 +28,8 @@ public class OutputRegistryTests {
         Bootstrap.initialize();
 
         for (Registry<?> registry : REGISTRIES) {
-            String fileName = "src/test/resources/net/earthcomputer/multiconnect/bridge/" + prefix + "_" + getId(registry).getPath() + "s.txt";
+            String fileName = "src/test/resources/net/earthcomputer/multiconnect/bridge/" + prefix + "_"
+                    + getId(registry).getPath() + "s.txt";
             System.out.println("Writing " + fileName);
             try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(Paths.get(fileName)))) {
                 for (Object entry : registry) {

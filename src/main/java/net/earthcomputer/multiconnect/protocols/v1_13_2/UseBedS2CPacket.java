@@ -11,6 +11,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.math.BlockPos;
 
 public class UseBedS2CPacket implements Packet<ClientPlayNetworkHandler> {
+    private final MinecraftClient client = MinecraftClient.getInstance();
     private final int playerId;
     private final BlockPos bedPos;
 
@@ -26,8 +27,8 @@ public class UseBedS2CPacket implements Packet<ClientPlayNetworkHandler> {
 
     @Override
     public void apply(ClientPlayNetworkHandler handler) {
-        NetworkThreadUtils.forceMainThread(this, handler, MinecraftClient.getInstance());
-        ClientWorld world = MinecraftClient.getInstance().world;
+        NetworkThreadUtils.forceMainThread(this, handler, this.client);
+        ClientWorld world = this.client.world;
         assert world != null;
         Entity entity = world.getEntityById(playerId);
         if (entity instanceof PlayerEntity player) {

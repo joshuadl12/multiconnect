@@ -32,8 +32,10 @@ public class AssetDownloader {
 
     private static final Pattern ARG_PATTERN = Pattern.compile("%(\\d+\\$)?[\\d.]*[dfs]");
     private static final Pattern LANG_ASSET_PATTERN = Pattern.compile("minecraft/lang/([a-zA-Z_]+)\\.(json|lang)");
-    private static final File CACHE_DIR = new File(FabricLoader.getInstance().getConfigDir().toFile(), "multiconnect/caches");
-    private static final URL VERSION_MANIFEST = createURL("https://launchermeta.mojang.com/mc/game/version_manifest.json");
+    private static final File CACHE_DIR = new File(FabricLoader.getInstance().getConfigDir().toFile(),
+            "multiconnect/caches");
+    private static final URL VERSION_MANIFEST = createURL(
+            "https://launchermeta.mojang.com/mc/game/version_manifest.json");
     private static final String ASSET_URL_FORMAT = "https://resources.download.minecraft.net/%s/%s";
 
     private static Map<String, String> versionUrls;
@@ -79,7 +81,8 @@ public class AssetDownloader {
         }
         for (String key : currentFallback.keySet()) {
             if (!currentNative.containsKey(key)) {
-                if (!latestFallback.containsKey(key) || argCount(currentFallback.get(key)) != argCount(latestFallback.get(key))) {
+                if (!latestFallback.containsKey(key)
+                        || argCount(currentFallback.get(key)) != argCount(latestFallback.get(key))) {
                     translations.accept(key, currentFallback.get(key));
                 }
             }
@@ -173,7 +176,8 @@ public class AssetDownloader {
         assets.objects.forEach((k, v) -> {
             Matcher matcher = LANG_ASSET_PATTERN.matcher(k);
             if (matcher.matches() && v.hash.length() >= 2) {
-                urls.put(matcher.group(1).toLowerCase(Locale.ENGLISH), String.format(ASSET_URL_FORMAT, v.hash.substring(0, 2), v.hash));
+                urls.put(matcher.group(1).toLowerCase(Locale.ENGLISH),
+                        String.format(ASSET_URL_FORMAT, v.hash.substring(0, 2), v.hash));
             }
         });
 
@@ -183,7 +187,8 @@ public class AssetDownloader {
 
     private static File getLangFile(String version, String langCode) {
         langCode = langCode.toLowerCase(Locale.ENGLISH);
-        // en_us is in the jar file rather than in the assets, we don't want to have to download the whole jar
+        // en_us is in the jar file rather than in the assets, we don't want to have to
+        // download the whole jar
         if ("en_us".equals(langCode))
             langCode = "en_gb";
 
@@ -215,10 +220,10 @@ public class AssetDownloader {
             return Collections.emptyMap();
 
         try {
-            //noinspection unchecked
+            // noinspection unchecked
             Map<String, Object> translations = GSON.fromJson(new FileReader(langFile), Map.class);
             translations.keySet().removeIf(k -> !(translations.get(k) instanceof String));
-            //noinspection unchecked
+            // noinspection unchecked
             return (Map<String, String>) (Object) translations;
         } catch (JsonSyntaxException e) {
             // expected - old lang file format
@@ -257,7 +262,8 @@ public class AssetDownloader {
         return download(serverUrl, version + "/server.jar");
     }
 
-    // Downloads a json file if un-downloaded, or if it has a json syntax error (corrupted)
+    // Downloads a json file if un-downloaded, or if it has a json syntax error
+    // (corrupted)
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private static <T> T downloadJson(URL url, String dest, Class<T> type) {
         File downloadedFile = download(url, dest);
@@ -315,7 +321,8 @@ public class AssetDownloader {
             }
 
             long lastModified = connection.getHeaderFieldDate("Last-Modified", -1);
-            if (!force && destFile.exists() && (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED || lastModified > 0 && destFile.lastModified() >= lastModified))
+            if (!force && destFile.exists() && (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED
+                    || lastModified > 0 && destFile.lastModified() >= lastModified))
                 return destFile;
 
             destFile.getParentFile().mkdirs();
@@ -344,6 +351,7 @@ public class AssetDownloader {
 
     static class VersionManifest {
         List<Version> versions;
+
         static class Version {
             String id;
             String url;
@@ -361,6 +369,7 @@ public class AssetDownloader {
 
     static class AssetFile {
         Map<String, Obj> objects;
+
         static class Obj {
             String hash;
         }

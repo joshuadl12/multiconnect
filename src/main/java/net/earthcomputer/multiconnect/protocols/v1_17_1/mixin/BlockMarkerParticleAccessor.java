@@ -9,8 +9,9 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(BlockMarkerParticle.class)
 public interface BlockMarkerParticleAccessor {
-    @Invoker
-    static BlockMarkerParticle createBlockMarkerParticle(ClientWorld world, double x, double y, double z, BlockState state) {
+    @Invoker("<init>")
+    static BlockMarkerParticle createBlockMarkerParticle(ClientWorld world, double x, double y, double z,
+            BlockState state) {
         return MixinHelper.fakeInstance();
     }
 }

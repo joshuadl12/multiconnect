@@ -31,6 +31,7 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.packet.c2s.play.ClientSettingsC2SPacket;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityData;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.network.packet.s2c.play.SimulationDistanceS2CPacket;
@@ -55,6 +56,7 @@ import java.util.BitSet;
 import java.util.List;
 
 public class Protocol_1_17_1 extends Protocol_1_18 {
+
     private static final Logger LOGGER = LogManager.getLogger("multiconnect");
     public static final Key<BitSet> VERTICAL_STRIP_BITMASK = Key.create("verticalStripBitmask");
     private static final Key<int[]> BIOMES = Key.create("biomes");
@@ -166,10 +168,10 @@ public class Protocol_1_17_1 extends Protocol_1_18 {
             buf.readBytesSingleAlloc(dataLength); // data
             buf.disablePassthroughMode();
             List<NbtCompound> blockEntities = buf.readList(PacketByteBuf::readNbt);
-            var newBlockEntities = new ArrayList<net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityData>(blockEntities.size());
+            var newBlockEntities = new ArrayList<net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityData>(
+                    blockEntities.size());
             for (NbtCompound blockEntity : blockEntities) {
-                if (!blockEntity.contains("x", NbtElement.INT_TYPE)
-                        || !blockEntity.contains("y", NbtElement.INT_TYPE)
+                if (!blockEntity.contains("x", NbtElement.INT_TYPE) || !blockEntity.contains("y", NbtElement.INT_TYPE)
                         || !blockEntity.contains("z", NbtElement.INT_TYPE)) {
                     continue;
                 }
@@ -190,29 +192,27 @@ public class Protocol_1_17_1 extends Protocol_1_18 {
                     continue;
                 }
                 var newBlockEntity = ChunkDataBlockEntityAccessor.createChunkDataBlockEntity(
-                        (ChunkSectionPos.getLocalCoord(x) << 4) | ChunkSectionPos.getLocalCoord(z),
-                        y,
-                        type,
-                        blockEntity
-                );
+                        (ChunkSectionPos.getLocalCoord(x) << 4) | ChunkSectionPos.getLocalCoord(z), y, type,
+                        blockEntity);
                 newBlockEntities.add(newBlockEntity);
             }
-            //noinspection unchecked
+            // noinspection unchecked
             buf.pendingReadCollection(
                     (Class<List<net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityData>>) (Class<?>) List.class,
-                    net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityData.class,
-                    newBlockEntities
-            );
+                    net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityData.class, newBlockEntities);
 
             buf.pendingRead(Boolean.class, true); // trust edges
             buf.pendingRead(BitSet.class, new BitSet()); // skylight mask
             buf.pendingRead(BitSet.class, new BitSet()); // block light mask
             buf.pendingRead(BitSet.class, new BitSet()); // filled skylight mask
             buf.pendingRead(BitSet.class, new BitSet()); // filled block light mask
-            //noinspection unchecked
-            buf.pendingReadCollection((Class<List<byte[]>>) (Class<?>) List.class, byte[].class, new ArrayList<>()); // skylight data
-            //noinspection unchecked
-            buf.pendingReadCollection((Class<List<byte[]>>) (Class<?>) List.class, byte[].class, new ArrayList<>()); // block light data
+            // noinspection unchecked
+            buf.pendingReadCollection((Class<List<byte[]>>) (Class<?>) List.class, byte[].class, new ArrayList<>()); // skylight
+                                                                                                                     // data
+            // noinspection unchecked
+            buf.pendingReadCollection((Class<List<byte[]>>) (Class<?>) List.class, byte[].class, new ArrayList<>()); // block
+                                                                                                                     // light
+                                                                                                                     // data
 
             buf.applyPendingReads();
         });
@@ -252,11 +252,13 @@ public class Protocol_1_17_1 extends Protocol_1_18 {
                     if (bitsPerBiome <= 2) {
                         if (bitsPerBiome == 0) {
                             bitsPerBiome = 1;
-                            buf.pendingRead(VarInt.class, new VarInt(mapBiomeId(biomePalette.getInt(0), biomeRegistry)));
+                            buf.pendingRead(VarInt.class,
+                                    new VarInt(mapBiomeId(biomePalette.getInt(0), biomeRegistry)));
                         } else {
                             buf.pendingRead(VarInt.class, new VarInt(biomePalette.size()));
                             for (int i = 0; i < biomePalette.size(); i++) {
-                                buf.pendingRead(VarInt.class, new VarInt(mapBiomeId(biomePalette.getInt(i), biomeRegistry)));
+                                buf.pendingRead(VarInt.class,
+                                        new VarInt(mapBiomeId(biomePalette.getInt(i), biomeRegistry)));
                             }
                         }
                     } else {
@@ -266,7 +268,8 @@ public class Protocol_1_17_1 extends Protocol_1_18 {
                     long[] result = new long[(64 + biomesPerLong - 1) / biomesPerLong];
                     long currentLong = 0;
                     for (int i = 0; i < 64; i++) {
-                        int valueToWrite = bitsPerBiome <= 2 ? invBiomePalette.get(biomes[minIndex + i]) : mapBiomeId(biomes[minIndex + i], biomeRegistry);
+                        int valueToWrite = bitsPerBiome <= 2 ? invBiomePalette.get(biomes[minIndex + i])
+                                : mapBiomeId(biomes[minIndex + i], biomeRegistry);
                         int posInLong = i % biomesPerLong;
                         currentLong |= (long) valueToWrite << (posInLong * bitsPerBiome);
                         if (posInLong + bitsPerBiome >= 64 || i == 63) {
@@ -302,29 +305,29 @@ public class Protocol_1_17_1 extends Protocol_1_18 {
             buf.disablePassthroughMode();
             int type = buf.readUnsignedByte();
             BlockEntityType<?> actualType = switch (type) {
-                case 1 -> BlockEntityType.MOB_SPAWNER;
-                case 2 -> BlockEntityType.COMMAND_BLOCK;
-                case 3 -> BlockEntityType.BEACON;
-                case 4 -> BlockEntityType.SKULL;
-                case 5 -> {
-                    if (ConnectionInfo.protocolVersion <= Protocols.V1_12_2) {
-                        yield BlockEntities_1_12_2.FLOWER_POT;
-                    } else {
-                        yield BlockEntityType.CONDUIT;
-                    }
+            case 1 -> BlockEntityType.MOB_SPAWNER;
+            case 2 -> BlockEntityType.COMMAND_BLOCK;
+            case 3 -> BlockEntityType.BEACON;
+            case 4 -> BlockEntityType.SKULL;
+            case 5 -> {
+                if (ConnectionInfo.protocolVersion <= Protocols.V1_12_2) {
+                    yield BlockEntities_1_12_2.FLOWER_POT;
+                } else {
+                    yield BlockEntityType.CONDUIT;
                 }
-                case 6 -> BlockEntityType.BANNER;
-                case 7 -> BlockEntityType.STRUCTURE_BLOCK;
-                case 8 -> BlockEntityType.END_GATEWAY;
-                case 9 -> BlockEntityType.SIGN;
-                case 11 -> BlockEntityType.BED;
-                case 12 -> BlockEntityType.JIGSAW;
-                case 13 -> BlockEntityType.CAMPFIRE;
-                case 14 -> BlockEntityType.BEEHIVE;
-                default -> {
-                    LOGGER.warn("Received unknown block entity type: " + type);
-                    yield BlockEntityType.MOB_SPAWNER;
-                }
+            }
+            case 6 -> BlockEntityType.BANNER;
+            case 7 -> BlockEntityType.STRUCTURE_BLOCK;
+            case 8 -> BlockEntityType.END_GATEWAY;
+            case 9 -> BlockEntityType.SIGN;
+            case 11 -> BlockEntityType.BED;
+            case 12 -> BlockEntityType.JIGSAW;
+            case 13 -> BlockEntityType.CAMPFIRE;
+            case 14 -> BlockEntityType.BEEHIVE;
+            default -> {
+                LOGGER.warn("Received unknown block entity type: " + type);
+                yield BlockEntityType.MOB_SPAWNER;
+            }
             };
             buf.pendingRead(VarInt.class, new VarInt(Registry.BLOCK_ENTITY_TYPE.getRawId(actualType)));
             buf.applyPendingReads();
@@ -400,6 +403,7 @@ public class Protocol_1_17_1 extends Protocol_1_18 {
         registry.unregister(SoundEvents.MUSIC_OVERWORLD_FROZEN_PEAKS);
         registry.unregister(SoundEvents.MUSIC_OVERWORLD_SNOWY_SLOPES);
         registry.unregister(SoundEvents.MUSIC_OVERWORLD_STONY_PEAKS);
-        insertAfter(registry, SoundEvents.MUSIC_NETHER_SOUL_SAND_VALLEY, SoundEvents.MUSIC_NETHER_CRIMSON_FOREST, "music.nether.crimson_forest");
+        insertAfter(registry, SoundEvents.MUSIC_NETHER_SOUL_SAND_VALLEY, SoundEvents.MUSIC_NETHER_CRIMSON_FOREST,
+                "music.nether.crimson_forest");
     }
 }

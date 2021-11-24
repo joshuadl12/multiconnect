@@ -29,7 +29,8 @@ public class MapUpdateS2CPacket_1_16_5 implements Packet<ClientPlayPacketListene
         icons = new MapIcon[buf.readVarInt()];
         for (int i = 0; i < icons.length; i++) {
             MapIcon.Type type = buf.readEnumConstant(MapIcon.Type.class);
-            icons[i] = new MapIcon(type, buf.readByte(), buf.readByte(), (byte)(buf.readByte() & 15), buf.readBoolean() ? buf.readText() : null);
+            icons[i] = new MapIcon(type, buf.readByte(), buf.readByte(), (byte) (buf.readByte() & 15),
+                    buf.readBoolean() ? buf.readText() : null);
         }
 
         int width = buf.readUnsignedByte();
@@ -51,19 +52,20 @@ public class MapUpdateS2CPacket_1_16_5 implements Packet<ClientPlayPacketListene
 
     @Override
     public void apply(ClientPlayPacketListener listener) {
-        NetworkThreadUtils.forceMainThread(this, listener, MinecraftClient.getInstance());
+        MinecraftClient client = MinecraftClient.getInstance();
+        NetworkThreadUtils.forceMainThread(this, listener, client);
 
         MapUpdateS2CPacket packet = new MapUpdateS2CPacket(id, scale, locked, Arrays.asList(icons), data);
         listener.onMapUpdate(packet);
 
         assert MinecraftClient.getInstance().world != null;
         String mapName = FilledMapItem.getMapName(id);
-        MapState mapState = MinecraftClient.getInstance().world.getMapState(mapName);
+        MapState mapState = client.world.getMapState(mapName);
         if (mapState != null) {
             MapStateAccessor accessor = (MapStateAccessor) mapState;
             if (showIcons != accessor.isShowIcons()) {
                 accessor.setShowIcons(showIcons);
-                MinecraftClient.getInstance().gameRenderer.getMapRenderer().updateTexture(id, mapState);
+                client.gameRenderer.getMapRenderer().updateTexture(id, mapState);
             }
         }
     }

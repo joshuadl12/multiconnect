@@ -1,7 +1,62 @@
 package net.earthcomputer.multiconnect.transformer;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.UncheckedIOException;
+import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.GatheringByteChannel;
+import java.nio.channels.ScatteringByteChannel;
+import java.nio.charset.Charset;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
+
 import com.google.common.collect.Iterables;
 import com.mojang.serialization.Codec;
+
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Handle;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.LineNumberNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.spongepowered.asm.service.MixinService;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
@@ -18,7 +73,8 @@ import net.earthcomputer.multiconnect.protocols.generic.TypedMap;
 import net.minecraft.SharedConstants;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.*;
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
@@ -26,28 +82,6 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.*;
-import org.spongepowered.asm.service.MixinService;
-
-import java.io.*;
-import java.lang.reflect.Array;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.GatheringByteChannel;
-import java.nio.channels.ScatteringByteChannel;
-import java.nio.charset.Charset;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.*;
 
 public final class TransformerByteBuf extends PacketByteBuf implements IUserDataHolder {
     private static final Logger LOGGER = LogManager.getLogger("multiconnect");
@@ -98,11 +132,13 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     }
 
     public TransformerByteBuf readTopLevelType(Object type, @Nullable TypedMap outUserData) {
-        return readTopLevelType(type, ConnectionInfo.protocolVersion, buf -> {}, outUserData);
+        return readTopLevelType(type, ConnectionInfo.protocolVersion, buf -> {
+        }, outUserData);
     }
 
     @SuppressWarnings("unchecked")
-    public <T> TransformerByteBuf readTopLevelType(Object type, int protocolVersion, InboundTranslator<T> additionalTranslator, @Nullable TypedMap outUserData) {
+    public <T> TransformerByteBuf readTopLevelType(Object type, int protocolVersion,
+            InboundTranslator<T> additionalTranslator, @Nullable TypedMap outUserData) {
         long startTime = PROFILE_TRANSFORMER ? System.nanoTime() : 0;
         transformationEnabled = true;
         writeMode = false;
@@ -112,8 +148,9 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         }
         try {
             additionalTranslator.onRead(this);
-            var translators = (List<Pair<Integer, InboundTranslator<?>>>) (List<?>)
-                    translatorRegistry.getInboundTranslators(type, protocolVersion, SharedConstants.getGameVersion().getProtocolVersion());
+            var translators = (List<Pair<Integer, InboundTranslator<?>>>) (List<?>) translatorRegistry
+                    .getInboundTranslators(type, protocolVersion,
+                            SharedConstants.getGameVersion().getProtocolVersion());
             for (var translator : translators) {
                 if (getStackFrame().traceEnabled) {
                     getStackFrame().tracePasses.add(new StackFrame.TracePass(translator.getLeft()));
@@ -153,8 +190,9 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         if (userData != null) {
             getStackFrame().userData.putAll(userData);
         }
-        var translators = (List<Pair<Integer, OutboundTranslator<?>>>) (List<?>)
-                translatorRegistry.getOutboundTranslators(type, ConnectionInfo.protocolVersion, SharedConstants.getGameVersion().getProtocolVersion());
+        var translators = (List<Pair<Integer, OutboundTranslator<?>>>) (List<?>) translatorRegistry
+                .getOutboundTranslators(type, ConnectionInfo.protocolVersion,
+                        SharedConstants.getGameVersion().getProtocolVersion());
         for (var translator : translators) {
             translator.getRight().onWrite(this);
             getStackFrame().version = translator.getLeft();
@@ -162,7 +200,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         getStackFrame().version = SharedConstants.getGameVersion().getProtocolVersion();
         if (PROFILE_TRANSFORMER) {
             long time = System.nanoTime() - startTime;
-            LOGGER.info("Transforming outbound {} took {}us (note: may be inaccurate for outbound)", type, time / 1000.0);
+            LOGGER.info("Transforming outbound {} took {}us (note: may be inaccurate for outbound)", type,
+                    time / 1000.0);
         }
         return this;
     }
@@ -195,10 +234,12 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     }
 
     private <T> T read(Class<T> type, Supplier<T> readMethod) {
-        return read(type, readMethod, readMethod, value -> {}, Function.identity());
+        return read(type, readMethod, readMethod, value -> {
+        }, Function.identity());
     }
 
-    private <STORED> TransformerByteBuf read(Class<?> type, Supplier<ByteBuf> readMethod, Supplier<STORED> storedValueExtractor, Consumer<STORED> storedValueApplier) {
+    private <STORED> TransformerByteBuf read(Class<?> type, Supplier<ByteBuf> readMethod,
+            Supplier<STORED> storedValueExtractor, Consumer<STORED> storedValueApplier) {
         return read(type, () -> {
             readMethod.get();
             return this;
@@ -206,11 +247,9 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     }
 
     @SuppressWarnings("unchecked")
-    private <RETURN, STORED> RETURN read(Object type,
-                                         Supplier<RETURN> readMethod,
-                                         Supplier<STORED> storedValueExtractor,
-                                         Consumer<STORED> storedValueApplier,
-                                         Function<STORED, RETURN> returnValueExtractor) {
+    private <RETURN, STORED> RETURN read(Object type, Supplier<RETURN> readMethod,
+            Supplier<STORED> storedValueExtractor, Consumer<STORED> storedValueApplier,
+            Function<STORED, RETURN> returnValueExtractor) {
         if (!transformationEnabled)
             return readMethod.get();
 
@@ -244,7 +283,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
             }
 
             if (getStackFrame().traceEnabled) {
-                getStackFrame().tracePasses.add(new StackFrame.TracePass(SharedConstants.getGameVersion().getProtocolVersion()));
+                getStackFrame().tracePasses
+                        .add(new StackFrame.TracePass(SharedConstants.getGameVersion().getProtocolVersion()));
             }
             getStackFrame().version = SharedConstants.getGameVersion().getProtocolVersion();
             if (!passthroughMode && translators.isEmpty()) {
@@ -306,7 +346,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     }
 
     public void pendingReadComplex(Object type, Object value) {
-        Queue<PendingValue<?>> queue = getStackFrame().pendingPendingReads.computeIfAbsent(type, k -> new ArrayDeque<>());
+        Queue<PendingValue<?>> queue = getStackFrame().pendingPendingReads.computeIfAbsent(type,
+                k -> new ArrayDeque<>());
         queue.add(new PendingValue<>(value, getStackFrame().version));
     }
 
@@ -330,8 +371,7 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
 
         int translatorsIndex = 0;
 
-        versionLoop:
-        for (var entry : getStackFrame().writeInstructions.tailMap(version).entrySet()) {
+        versionLoop: for (var entry : getStackFrame().writeInstructions.tailMap(version).entrySet()) {
             int ver = entry.getKey();
 
             while (translatorsIndex < translators.size() && translators.get(translatorsIndex).getLeft() >= ver) {
@@ -346,7 +386,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
             while (!instructions.isEmpty()) {
                 WriteInstruction insn = instructions.poll();
                 if (!insn.matchesType(type)) {
-                    throw new IllegalStateException("Write instruction expected type " + insn.getExpectedType() + ", but got " + type);
+                    throw new IllegalStateException(
+                            "Write instruction expected type " + insn.getExpectedType() + ", but got " + type);
                 }
                 insn.onWrite(value);
                 if (insn.consumesWrite()) {
@@ -368,7 +409,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         getStackFrame().version = version;
 
         if (!skipWrite) {
-            StackFrame newFrame = new StackFrame(type, SharedConstants.getGameVersion().getProtocolVersion(), getStackFrame().traceEnabled);
+            StackFrame newFrame = new StackFrame(type, SharedConstants.getGameVersion().getProtocolVersion(),
+                    getStackFrame().traceEnabled);
             if (getStackFrame().traceEnabled) {
                 Util.getLast(getStackFrame().tracePasses).frames.add(newFrame);
             }
@@ -438,7 +480,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     }
 
     public <T> void pendingWriteComplex(Object type, Supplier<T> value, Consumer<T> writeFunction) {
-        Queue<WriteInstruction> queue = getStackFrame().writeInstructions.computeIfAbsent(getStackFrame().version, k -> new ArrayDeque<>());
+        Queue<WriteInstruction> queue = getStackFrame().writeInstructions.computeIfAbsent(getStackFrame().version,
+                k -> new ArrayDeque<>());
         queue.add(new PendingWriteInstruction<>(type, value, writeFunction));
         queue.add(new PassthroughWriteInstruction<>(type, false));
     }
@@ -658,7 +701,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         IntList rawByteNodes = new IntArrayList();
         int prevReaderIndex = readerIndex();
         transformationEnabled = false;
-        if (stackFrame.endPos == -1) stackFrame.endPos = prevReaderIndex;
+        if (stackFrame.endPos == -1)
+            stackFrame.endPos = prevReaderIndex;
         readerIndex(stackFrame.startPos);
         for (int pos = stackFrame.startPos; pos < stackFrame.endPos; pos++) {
             if (pos != stackFrame.startPos) {
@@ -678,12 +722,14 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
 
         int rawBytesLabelRow = formatter.addRow();
 
-        dumpReadStackFrame(stackFrame, formatter, rawByteNodes, rawBytesLabelRow, stackFrame.startPos, formatter.rowCount(), stackFrame.startPos, -1, false, new int[1]);
+        dumpReadStackFrame(stackFrame, formatter, rawByteNodes, rawBytesLabelRow, stackFrame.startPos,
+                formatter.rowCount(), stackFrame.startPos, -1, false, new int[1]);
 
         return formatter.getLines();
     }
 
-    private int dumpReadStackFrame(StackFrame stackFrame, AligningFormatter formatter, IntList rawByteNodes, int rawBytesLabelRow, int firstPos, int startRow, int pos, int parentNext, boolean last, int[] bottomRow) {
+    private int dumpReadStackFrame(StackFrame stackFrame, AligningFormatter formatter, IntList rawByteNodes,
+            int rawBytesLabelRow, int firstPos, int startRow, int pos, int parentNext, boolean last, int[] bottomRow) {
         if (stackFrame.startPos < pos) {
             stackFrame.startPos = pos;
         }
@@ -707,7 +753,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         } else {
             typeName = String.valueOf(stackFrame.type);
         }
-        int stackFrameLabel = formatter.add(startRow, String.format("%s: %s ", typeName, Utils.toString(stackFrame.value, 16)));
+        int stackFrameLabel = formatter.add(startRow,
+                String.format("%s: %s ", typeName, Utils.toString(stackFrame.value, 16)));
         if (last) {
             formatter.leftAlign(formatter.add(startRow, ""), parentNext);
         }
@@ -717,13 +764,15 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         boolean stackFrameEmpty = true;
         for (int tracePassIdx = 0; tracePassIdx < stackFrame.tracePasses.size(); tracePassIdx++) {
             StackFrame.TracePass tracePass = stackFrame.tracePasses.get(tracePassIdx);
-            if (tracePass.frames.isEmpty()) continue;
+            if (tracePass.frames.isEmpty())
+                continue;
             stackFrameEmpty = false;
             row++;
             if (row == formatter.rowCount()) {
                 formatter.addRow();
             }
-            int versionNode = formatter.add(row, String.format("  %d (%s) ::", tracePass.version, ConnectionMode.byValue(tracePass.version).getName()));
+            int versionNode = formatter.add(row, String.format("  %d (%s) ::", tracePass.version,
+                    ConnectionMode.byValue(tracePass.version).getName()));
             formatter.leftAlign(versionNode, stackFrameLabel);
             int newBottomRow = row;
             for (int frameIdx = 0; frameIdx < tracePass.frames.size(); frameIdx++) {
@@ -731,7 +780,9 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
                 formatter.add(row, " ");
                 int[] subBottomRow = new int[1];
                 pos = dumpReadStackFrame(subFrame, formatter, rawByteNodes, rawBytesLabelRow, firstPos, row, pos,
-                        stackFrameLabelNext, frameIdx == tracePass.frames.size() - 1 && tracePassIdx == stackFrame.tracePasses.size() - 1, subBottomRow);
+                        stackFrameLabelNext,
+                        frameIdx == tracePass.frames.size() - 1 && tracePassIdx == stackFrame.tracePasses.size() - 1,
+                        subBottomRow);
                 if (subBottomRow[0] > newBottomRow) {
                     newBottomRow = subBottomRow[0];
                 }
@@ -830,107 +881,82 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
 
     @Override
     public ByteBuf readBytes(int len) {
-        return read(ByteBuf.class,
-                () -> super.readBytes(len),
-                () -> super.readByteArray(len),
-                value -> {},
-                value -> ByteBufAllocator.DEFAULT.buffer(len).writeBytes(value));
+        return read(ByteBuf.class, () -> super.readBytes(len), () -> super.readByteArray(len), value -> {
+        }, value -> ByteBufAllocator.DEFAULT.buffer(len).writeBytes(value));
     }
 
     @Override
     public ByteBuf readBytes(ByteBuf out) {
-        return read(ByteBuf.class,
-                () -> super.readBytes(out),
-                () -> super.readByteArray(out.writableBytes()),
+        return read(ByteBuf.class, () -> super.readBytes(out), () -> super.readByteArray(out.writableBytes()),
                 out::writeBytes);
     }
 
     @Override
     public ByteBuf readBytes(ByteBuf out, int len) {
-        return read(ByteBuf.class,
-                () -> super.readBytes(out, len),
-                () -> super.readByteArray(len),
-                out::writeBytes);
+        return read(ByteBuf.class, () -> super.readBytes(out, len), () -> super.readByteArray(len), out::writeBytes);
     }
 
     @Override
     public ByteBuf readBytes(ByteBuf out, int index, int len) {
-        return read(ByteBuf.class,
-                () -> super.readBytes(out, index, len),
-                () -> super.readByteArray(len),
+        return read(ByteBuf.class, () -> super.readBytes(out, index, len), () -> super.readByteArray(len),
                 value -> out.writeBytes(value, index, len));
     }
 
     @Override
     public ByteBuf readBytes(byte[] out) {
-        return read(byte[].class,
-                () -> super.readBytes(out),
-                () -> {
-                    super.readBytes(out);
-                    return out.clone();
-                },
-                value -> System.arraycopy(value, 0, out, 0, out.length));
+        return read(byte[].class, () -> super.readBytes(out), () -> {
+            super.readBytes(out);
+            return out.clone();
+        }, value -> System.arraycopy(value, 0, out, 0, out.length));
     }
 
     /**
-     * Same as readBytes(new byte[len]) but without requiring the caller to allocate the array.
-     * Saves on reallocation if multiple protocols read the same array.
+     * Same as readBytes(new byte[len]) but without requiring the caller to allocate
+     * the array. Saves on reallocation if multiple protocols read the same array.
      * Only clones the array when getting from the supplier.
      */
     public Supplier<byte[]> readBytesSingleAlloc(int len) {
-        return read(byte[].class,
-                () -> {
-                    byte[] out = new byte[len];
-                    super.readBytes(out);
-                    return () -> out;
-                },
-                () -> {
-                    byte[] out = new byte[len];
-                    super.readBytes(out);
-                    return out;
-                },
-                value -> {},
-                value -> value::clone);
+        return read(byte[].class, () -> {
+            byte[] out = new byte[len];
+            super.readBytes(out);
+            return () -> out;
+        }, () -> {
+            byte[] out = new byte[len];
+            super.readBytes(out);
+            return out;
+        }, value -> {
+        }, value -> value::clone);
     }
 
     @Override
     public ByteBuf readBytes(byte[] out, int index, int len) {
-        return read(byte[].class,
-                () -> super.readBytes(out, index, len),
-                () -> {
-                    super.readBytes(out, index, len);
-                    return Arrays.copyOfRange(out, index, index + len);
-                },
-                value -> System.arraycopy(value, 0, out, index, len));
+        return read(byte[].class, () -> super.readBytes(out, index, len), () -> {
+            super.readBytes(out, index, len);
+            return Arrays.copyOfRange(out, index, index + len);
+        }, value -> System.arraycopy(value, 0, out, index, len));
     }
 
     @Override
     public ByteBuf readBytes(ByteBuffer out) {
-        return read(ByteBuffer.class,
-                () -> super.readBytes(out),
-                () -> super.readByteArray(out.remaining()),
-                out::put);
+        return read(ByteBuffer.class, () -> super.readBytes(out), () -> super.readByteArray(out.remaining()), out::put);
     }
 
     @Override
     public ByteBuf readBytes(OutputStream out, int len) throws IOException {
         try {
-            return read(OutputStream.class,
-                    () -> {
-                        try {
-                            return super.readBytes(out, len);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    },
-                    () -> super.readByteArray(len),
-                    value -> {
-                        try {
-                            out.write(value);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    });
+            return read(OutputStream.class, () -> {
+                try {
+                    return super.readBytes(out, len);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }, () -> super.readByteArray(len), value -> {
+                try {
+                    out.write(value);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
         } catch (UncheckedIOException e) {
             throw e.getCause();
         }
@@ -1008,27 +1034,19 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
 
     @Override
     public long[] readLongArray(long[] out) {
-        return read(long[].class,
-                () -> super.readLongArray(out),
-                () -> super.readLongArray(out).clone(),
-                value -> {
-                    if (value.length <= out.length) {
-                        System.arraycopy(value, 0, out, 0, value.length);
-                    }
-                },
-                Function.identity());
+        return read(long[].class, () -> super.readLongArray(out), () -> super.readLongArray(out).clone(), value -> {
+            if (value.length <= out.length) {
+                System.arraycopy(value, 0, out, 0, value.length);
+            }
+        }, Function.identity());
     }
 
     @Override
     public long[] readLongArray(long[] out, int len) {
-        return read(long[].class,
-                () -> super.readLongArray(out, len),
-                () -> super.readLongArray(null, len),
-                value -> {
-                    if (len <= out.length)
-                        System.arraycopy(value, 0, out, 0, len);
-                },
-                value -> len <= out.length ? out : value);
+        return read(long[].class, () -> super.readLongArray(out, len), () -> super.readLongArray(null, len), value -> {
+            if (len <= out.length)
+                System.arraycopy(value, 0, out, 0, len);
+        }, value -> len <= out.length ? out : value);
     }
 
     @Override
@@ -1069,18 +1087,27 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     @SuppressWarnings("unchecked")
     @Override
     public <T> T decode(Codec<T> codec) {
-        // TODO: Make the types here Object rather than class, so we can distinguish the types of Codec
-        return read((Class<Codecked<T>>) (Class<?>) Codecked.class, () -> new Codecked<>(codec, super.decode(codec))).getValue();
+        // TODO: Make the types here Object rather than class, so we can distinguish the
+        // types of Codec
+        return read((Class<Codecked<T>>) (Class<?>) Codecked.class, () -> new Codecked<>(codec, super.decode(codec)))
+                .getValue();
     }
 
-    // TODO: when non-class types get merged from the 1.8 branch, collections here will need a bit of a refactor.
-    // Element type calculation has already been done (albeit not used). The rawtype collection class types will be replaced
-    // with a wrapper type in each of these methods, so future transformers can target "collections of V" rather than just
-    // "collections". A solution for passthrough reading collections will probably involve creating mirrors of all these
-    // collection read methods, which take as a parameter the up-to-date element read method (obtained via accessor mixins),
-    // which is similar to the default read methods already provided internally in this class (which call super).
+    // TODO: when non-class types get merged from the 1.8 branch, collections here
+    // will need a bit of a refactor.
+    // Element type calculation has already been done (albeit not used). The rawtype
+    // collection class types will be replaced
+    // with a wrapper type in each of these methods, so future transformers can
+    // target "collections of V" rather than just
+    // "collections". A solution for passthrough reading collections will probably
+    // involve creating mirrors of all these
+    // collection read methods, which take as a parameter the up-to-date element
+    // read method (obtained via accessor mixins),
+    // which is similar to the default read methods already provided internally in
+    // this class (which call super).
 
-    public <V, C extends Collection<V>> void pendingReadCollection(Class<C> collectionType, Class<V> elementType, C collection) {
+    public <V, C extends Collection<V>> void pendingReadCollection(Class<C> collectionType, Class<V> elementType,
+            C collection) {
         pendingRead(collectionType, collection);
     }
 
@@ -1094,22 +1121,20 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T, C extends Collection<T>> C readCollection(IntFunction<C> constructor, Function<PacketByteBuf, T> elementReader) {
-        Class<T> elementType = (Class<T>) getLambdaReturnType(elementReader, 1);
+    public <T, C extends Collection<T>> C readCollection(IntFunction<C> constructor,
+            Function<PacketByteBuf, T> elementReader) {
         return (C) read(Collection.class, () -> super.readCollection(constructor, elementReader));
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <T> void writeCollection(Collection<T> val, BiConsumer<PacketByteBuf, T> elementWriter) {
-        Class<T> elementType = (Class<T>) getLambdaParameterType(elementWriter, 0, 1);
         write((Class<Collection<T>>) (Class<?>) Collection.class, val, c -> super.writeCollection(c, elementWriter));
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <T> List<T> readList(Function<PacketByteBuf, T> elementReader) {
-        Class<T> elementType = (Class<T>) getLambdaReturnType(elementReader, 0);
         return read((Class<List<T>>) (Class<?>) List.class, () -> super.readList(elementReader));
     }
 
@@ -1126,31 +1151,26 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     @SuppressWarnings("unchecked")
     @Override
     public <K, V> Map<K, V> readMap(Function<PacketByteBuf, K> keyReader, Function<PacketByteBuf, V> valueReader) {
-        Class<K> keyType = (Class<K>) getLambdaReturnType(keyReader, 0);
-        Class<V> valueType = (Class<V>) getLambdaReturnType(valueReader, 1);
         return read((Class<Map<K, V>>) (Class<?>) Map.class, () -> super.readMap(keyReader, valueReader));
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <K, V, M extends Map<K, V>> M readMap(IntFunction<M> constructor, Function<PacketByteBuf, K> keyReader, Function<PacketByteBuf, V> valueReader) {
-        Class<K> keyType = (Class<K>) getLambdaReturnType(keyReader, 1);
-        Class<V> valueType = (Class<V>) getLambdaReturnType(valueReader, 2);
+    public <K, V, M extends Map<K, V>> M readMap(IntFunction<M> constructor, Function<PacketByteBuf, K> keyReader,
+            Function<PacketByteBuf, V> valueReader) {
         return read((Class<M>) (Class<?>) Map.class, () -> super.readMap(constructor, keyReader, valueReader));
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <K, V> void writeMap(Map<K, V> map, BiConsumer<PacketByteBuf, K> keyWriter, BiConsumer<PacketByteBuf, V> valueWriter) {
-        Class<K> keyType = (Class<K>) getLambdaParameterType(keyWriter, 0, 1);
-        Class<V> valueType = (Class<V>) getLambdaParameterType(valueWriter, 1, 1);
+    public <K, V> void writeMap(Map<K, V> map, BiConsumer<PacketByteBuf, K> keyWriter,
+            BiConsumer<PacketByteBuf, V> valueWriter) {
         write((Class<Map<K, V>>) (Class<?>) Map.class, map, m -> super.writeMap(m, keyWriter, valueWriter));
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <T> Optional<T> readOptional(Function<PacketByteBuf, T> elementReader) {
-        Class<T> elementType = (Class<T>) getLambdaReturnType(elementReader, 0);
         return read((Class<Optional<T>>) (Class<?>) Optional.class, () -> super.readOptional(elementReader));
     }
 
@@ -1168,12 +1188,15 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     }
 
     @ThreadSafe
-    private static Class<?> getLambdaParameterType(Object lambda, int functionalParameterIndex, int lambdaParameterIndex) {
-        return getLambdaElementType(lambda, functionalParameterIndex, methodType -> methodType.getArgumentTypes()[lambdaParameterIndex]);
+    private static Class<?> getLambdaParameterType(Object lambda, int functionalParameterIndex,
+            int lambdaParameterIndex) {
+        return getLambdaElementType(lambda, functionalParameterIndex,
+                methodType -> methodType.getArgumentTypes()[lambdaParameterIndex]);
     }
 
     @ThreadSafe
-    private static Class<?> getLambdaElementType(Object lambda, int functionalParameterIndex, UnaryOperator<Type> elementTypeExtractor) {
+    private static Class<?> getLambdaElementType(Object lambda, int functionalParameterIndex,
+            UnaryOperator<Type> elementTypeExtractor) {
         Class<?> lambdaClass = lambda.getClass();
 
         // quick exit with read lock
@@ -1188,18 +1211,22 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
 
         lambdaElementTypeLock.writeLock().lock();
         try {
-            // in case two threads with the same lambda get past the read lock at the same time
+            // in case two threads with the same lambda get past the read lock at the same
+            // time
             if (lambdaElementTypes.containsKey(lambdaClass)) {
                 return lambdaElementTypes.get(lambdaClass);
             }
 
-            StackWalker.StackFrame callSite = StackWalker.getInstance().walk(s -> s
-                    .dropWhile(sf -> sf.getClassName().equals(PacketByteBuf.class.getName()) || sf.getClassName().equals(TransformerByteBuf.class.getName()))
-                    .findFirst().orElseThrow(AssertionError::new));
+            StackWalker.StackFrame callSite = StackWalker.getInstance()
+                    .walk(s -> s
+                            .dropWhile(sf -> sf.getClassName().equals(PacketByteBuf.class.getName())
+                                    || sf.getClassName().equals(TransformerByteBuf.class.getName()))
+                            .findFirst().orElseThrow(AssertionError::new));
 
             ClassNode callerClass;
             try {
-                callerClass = MixinService.getService().getBytecodeProvider().getClassNode(callSite.getClassName().replace('.', '/'));
+                callerClass = MixinService.getService().getBytecodeProvider()
+                        .getClassNode(callSite.getClassName().replace('.', '/'));
             } catch (Exception e) {
                 LOGGER.error("Failed to get caller class", e);
                 lambdaElementTypes.put(lambdaClass, null);
@@ -1208,11 +1235,12 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
 
             AbstractInsnNode lineNumberNode = null;
             if (callerClass.methods != null) {
-                methodLoop:
-                for (MethodNode method : callerClass.methods) {
+                methodLoop: for (MethodNode method : callerClass.methods) {
                     if (method.name.equals(callSite.getMethodName()) && method.instructions != null) {
-                        for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
-                            if (insn.getType() == AbstractInsnNode.LINE && ((LineNumberNode) insn).line == callSite.getLineNumber()) {
+                        for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn
+                                .getNext()) {
+                            if (insn.getType() == AbstractInsnNode.LINE
+                                    && ((LineNumberNode) insn).line == callSite.getLineNumber()) {
                                 lineNumberNode = insn;
                                 break methodLoop;
                             }
@@ -1222,7 +1250,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
             }
 
             if (lineNumberNode == null) {
-                LOGGER.error("Failed to find relevant line number " + callSite.getLineNumber() + " in caller class" + callSite.getClassName());
+                LOGGER.error("Failed to find relevant line number " + callSite.getLineNumber() + " in caller class"
+                        + callSite.getClassName());
                 lambdaElementTypes.put(lambdaClass, null);
                 return null;
             }
@@ -1232,10 +1261,10 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
             for (AbstractInsnNode insn = lineNumberNode.getNext(); insn != null; insn = insn.getNext()) {
                 if (insn.getOpcode() == Opcodes.INVOKEDYNAMIC) {
                     InvokeDynamicInsnNode invokeDynamic = (InvokeDynamicInsnNode) insn;
-                    if (invokeDynamic.bsm.getOwner().equals("java/lang/invoke/LambdaMetafactory") && invokeDynamic.bsm.getName().equals("metafactory")
-                            && invokeDynamic.bsmArgs != null && invokeDynamic.bsmArgs.length >= 3
-                            && invokeDynamic.bsmArgs[1] instanceof Handle && invokeDynamic.bsmArgs[2] instanceof Type
-                            && lambdaCount++ == functionalParameterIndex) {
+                    if (invokeDynamic.bsm.getOwner().equals("java/lang/invoke/LambdaMetafactory")
+                            && invokeDynamic.bsm.getName().equals("metafactory") && invokeDynamic.bsmArgs != null
+                            && invokeDynamic.bsmArgs.length >= 3 && invokeDynamic.bsmArgs[1] instanceof Handle
+                            && invokeDynamic.bsmArgs[2] instanceof Type && lambdaCount++ == functionalParameterIndex) {
                         foundInvokeDynamic = invokeDynamic;
                         break;
                     }
@@ -1243,7 +1272,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
             }
 
             if (foundInvokeDynamic == null) {
-                LOGGER.error("Failed to find lambda " + functionalParameterIndex + " in caller class " + callSite.getClassName() + " at line " + callSite.getLineNumber());
+                LOGGER.error("Failed to find lambda " + functionalParameterIndex + " in caller class "
+                        + callSite.getClassName() + " at line " + callSite.getLineNumber());
                 lambdaElementTypes.put(lambdaClass, null);
                 return null;
             }
@@ -1253,7 +1283,8 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
             if (handle.getOwner().equals(Type.getInternalName(ByteBuf.class))
                     || handle.getOwner().equals(Type.getInternalName(PacketByteBuf.class))
                     || handle.getOwner().equals(Type.getInternalName(TransformerByteBuf.class))) {
-                // method reference to a byte buf method, transformer byte buf will handle the type
+                // method reference to a byte buf method, transformer byte buf will handle the
+                // type
                 lambdaElementTypes.put(lambdaClass, null);
                 return null;
             }
@@ -1261,9 +1292,11 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
             Type elementType = elementTypeExtractor.apply(lambdaMethodType);
             Class<?> lambdaElementType;
             try {
-                lambdaElementType = Class.forName(elementType.getSort() == Type.ARRAY ? elementType.getDescriptor() : elementType.getClassName());
+                lambdaElementType = Class.forName(
+                        elementType.getSort() == Type.ARRAY ? elementType.getDescriptor() : elementType.getClassName());
             } catch (ClassNotFoundException e) {
-                LOGGER.error("Failed to convert lambda element type name " + elementType.getClassName() + " to Class", e);
+                LOGGER.error("Failed to convert lambda element type name " + elementType.getClassName() + " to Class",
+                        e);
                 lambdaElementTypes.put(lambdaClass, null);
                 return null;
             }
@@ -1389,7 +1422,7 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
         Class<?> clazz = val.getClass();
         for (Class<?> sup = clazz.getSuperclass(); sup != Enum.class; sup = clazz.getSuperclass())
             clazz = sup;
-        return write(clazz, (T)val, super::writeEnumConstant);
+        return write(clazz, (T) val, super::writeEnumConstant);
     }
 
     @Override
@@ -1598,7 +1631,6 @@ public final class TransformerByteBuf extends PacketByteBuf implements IUserData
     @SuppressWarnings("unchecked")
     @Override
     public <T> void writeOptional(Optional<T> val, BiConsumer<PacketByteBuf, T> elementWriter) {
-        Class<T> elementType = (Class<T>) getLambdaParameterType(elementWriter, 0, 1);
         write((Class<Optional<T>>) (Class<?>) Optional.class, val, o -> super.writeOptional(o, elementWriter));
     }
 

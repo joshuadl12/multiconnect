@@ -1,6 +1,7 @@
 package net.earthcomputer.multiconnect.protocols.generic;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 import net.earthcomputer.multiconnect.api.ICustomPayloadListener;
 import net.earthcomputer.multiconnect.api.ThreadSafe;
 import net.earthcomputer.multiconnect.impl.ConnectionInfo;

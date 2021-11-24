@@ -44,8 +44,9 @@ public class Protocol_1_17 extends Protocol_1_17_1 {
                 items.set(i, buf.readItemStack());
             }
             buf.pendingRead(VarInt.class, new VarInt(0)); // revision
-            //noinspection unchecked
-            buf.pendingReadCollection((Class<Collection<ItemStack>>) (Class<?>) Collection.class, ItemStack.class, items);
+            // noinspection unchecked
+            buf.pendingReadCollection((Class<Collection<ItemStack>>) (Class<?>) Collection.class, ItemStack.class,
+                    items);
             buf.pendingRead(ItemStack.class, ItemStack.EMPTY); // cursor stack
             buf.applyPendingReads();
         });
@@ -61,10 +62,11 @@ public class Protocol_1_17 extends Protocol_1_17_1 {
 
         ProtocolRegistry.registerOutboundTranslator(BookUpdateC2SPacket.class, buf -> {
             Supplier<VarInt> slot = buf.skipWrite(VarInt.class);
-            //noinspection unchecked
+            // noinspection unchecked
             var pages = buf.skipWriteCollection((Class<Collection<String>>) (Class<?>) Collection.class, String.class);
             var title = buf.skipWriteOptional(String.class);
-            buf.pendingWrite(ItemStack.class, () -> createBookItemStack(title.get(), pages.get(), MinecraftClient.getInstance().getNetworkHandler()), buf::writeItemStack); // book
+            buf.pendingWrite(ItemStack.class, () -> createBookItemStack(title.get(), pages.get(),
+                    MinecraftClient.getInstance().getNetworkHandler()), buf::writeItemStack); // book
             buf.pendingWrite(Boolean.class, () -> title.get().isPresent(), buf::writeBoolean); // sign
             buf.pendingWrite(VarInt.class, slot, varInt -> buf.writeVarInt(varInt.get()));
         });
@@ -74,7 +76,8 @@ public class Protocol_1_17 extends Protocol_1_17_1 {
         });
     }
 
-    public static ItemStack createBookItemStack(Optional<String> title, Collection<String> pages, @Nullable ClientPlayNetworkHandler connection) {
+    public static ItemStack createBookItemStack(Optional<String> title, Collection<String> pages,
+            @Nullable ClientPlayNetworkHandler connection) {
         ItemStack bookStack = new ItemStack(Items.WRITABLE_BOOK);
         if (!pages.isEmpty()) {
             NbtList pagesNbt = new NbtList();
@@ -91,7 +94,8 @@ public class Protocol_1_17 extends Protocol_1_17_1 {
     @Override
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
-        insertAfter(packets, EntitiesDestroyS2CPacket.class, PacketInfo.of(EntityDestroyS2CPacket_1_17.class, EntityDestroyS2CPacket_1_17::new));
+        insertAfter(packets, EntitiesDestroyS2CPacket.class,
+                PacketInfo.of(EntityDestroyS2CPacket_1_17.class, EntityDestroyS2CPacket_1_17::new));
         remove(packets, EntitiesDestroyS2CPacket.class);
         return packets;
     }

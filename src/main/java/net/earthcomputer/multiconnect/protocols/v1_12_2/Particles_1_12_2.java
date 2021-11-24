@@ -30,6 +30,7 @@ import static net.minecraft.particle.ParticleTypes.*;
 public class Particles_1_12_2 {
 
     private static final BiMap<ParticleType<?>, String> OLD_NAMES = HashBiMap.create();
+    private static final MinecraftClient client = MinecraftClient.getInstance();
 
     public static final DefaultParticleType DEPTH_SUSPEND = new MyParticleType(false);
     public static final DefaultParticleType FOOTSTEP = new MyParticleType(false);
@@ -89,7 +90,8 @@ public class Particles_1_12_2 {
         OLD_NAMES.put(SPIT, "spit");
     }
 
-    private static void register(ISimpleRegistry<ParticleType<?>> registry, ParticleType<?> particle, int id, String name) {
+    private static void register(ISimpleRegistry<ParticleType<?>> registry, ParticleType<?> particle, int id,
+            String name) {
         var key = RegistryKey.of(registry.getRegistryKey(), new Identifier(name));
         registry.register(particle, id, key, false);
     }
@@ -146,7 +148,7 @@ public class Particles_1_12_2 {
         register(registry, TOTEM_OF_UNDYING, 47, "totem_of_undying");
         register(registry, SPIT, 48, "spit");
 
-        registerParticleFactories((IParticleManager) MinecraftClient.getInstance().particleManager);
+        registerParticleFactories((IParticleManager) Particles_1_12_2.client.particleManager);
     }
 
     public static void registerParticleFactories(IParticleManager particleManager) {
@@ -158,12 +160,14 @@ public class Particles_1_12_2 {
 
     private static class DepthSuspendFactory implements ParticleFactory<DefaultParticleType> {
         private final SpriteProvider sprite;
+
         public DepthSuspendFactory(SpriteProvider sprite) {
             this.sprite = sprite;
         }
 
         @Override
-        public Particle createParticle(DefaultParticleType type, ClientWorld world, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+        public Particle createParticle(DefaultParticleType type, ClientWorld world, double x, double y, double z,
+                double xSpeed, double ySpeed, double zSpeed) {
             SuspendParticle particle = SuspendParticleAccessor.constructor(world, x, y, z, xSpeed, ySpeed, zSpeed);
             particle.setSprite(sprite);
             return particle;
@@ -172,8 +176,10 @@ public class Particles_1_12_2 {
 
     private static class SnowShovelFactory implements ParticleFactory<DefaultParticleType> {
         @Override
-        public Particle createParticle(DefaultParticleType type, ClientWorld world, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
-            return CrackParticleAccessor.constructor(world, x, y, z, xSpeed, ySpeed, zSpeed, new ItemStack(Blocks.SNOW_BLOCK));
+        public Particle createParticle(DefaultParticleType type, ClientWorld world, double x, double y, double z,
+                double xSpeed, double ySpeed, double zSpeed) {
+            return CrackParticleAccessor.constructor(world, x, y, z, xSpeed, ySpeed, zSpeed,
+                    new ItemStack(Blocks.SNOW_BLOCK));
         }
     }
 
@@ -192,7 +198,8 @@ public class Particles_1_12_2 {
         @SuppressWarnings("deprecation")
         @Override
         public void buildGeometry(VertexConsumer vc, Camera camera, float delta) {
-            if (!(vc instanceof BufferBuilder)) return;
+            if (!(vc instanceof BufferBuilder))
+                return;
 
             float alpha = (ticks + delta) / maxTicks;
             alpha *= alpha;
@@ -235,7 +242,8 @@ public class Particles_1_12_2 {
 
         public static class Factory implements ParticleFactory<DefaultParticleType> {
             @Override
-            public Particle createParticle(DefaultParticleType type, ClientWorld world, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+            public Particle createParticle(DefaultParticleType type, ClientWorld world, double x, double y, double z,
+                    double xSpeed, double ySpeed, double zSpeed) {
                 return new FootprintParticle(world, x, y, z);
             }
         }
@@ -243,7 +251,8 @@ public class Particles_1_12_2 {
 
     private static class OldBlockDustParticle extends BlockDustParticle {
 
-        public OldBlockDustParticle(ClientWorld world, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, BlockState state) {
+        public OldBlockDustParticle(ClientWorld world, double x, double y, double z, double xSpeed, double ySpeed,
+                double zSpeed, BlockState state) {
             super(world, x, y, z, xSpeed, ySpeed, zSpeed, state);
             velocityX = xSpeed;
             velocityY = ySpeed;
@@ -253,7 +262,8 @@ public class Particles_1_12_2 {
         public static class Factory implements ParticleFactory<BlockStateParticleEffect> {
 
             @Override
-            public Particle createParticle(BlockStateParticleEffect type, ClientWorld world, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+            public Particle createParticle(BlockStateParticleEffect type, ClientWorld world, double x, double y,
+                    double z, double xSpeed, double ySpeed, double zSpeed) {
                 return new OldBlockDustParticle(world, x, y, z, xSpeed, ySpeed, zSpeed, type.getBlockState());
             }
         }

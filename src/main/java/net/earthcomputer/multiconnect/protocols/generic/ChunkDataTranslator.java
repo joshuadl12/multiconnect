@@ -1,6 +1,33 @@
 package net.earthcomputer.multiconnect.protocols.generic;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
@@ -33,15 +60,6 @@ import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.registry.DynamicRegistryManager;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.dimension.DimensionType;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ChunkDataTranslator {
     private static final Logger LOGGER = LogManager.getLogger("multiconnect");
@@ -65,7 +83,8 @@ public class ChunkDataTranslator {
     private final DynamicRegistryManager registryManager;
     private final List<Packet<ClientPlayPacketListener>> postPackets = new ArrayList<>();
 
-    public ChunkDataTranslator(ChunkDataS2CPacket packet, boolean isFullChunk, DimensionType dimension, DynamicRegistryManager registryManager) {
+    public ChunkDataTranslator(ChunkDataS2CPacket packet, boolean isFullChunk, DimensionType dimension,
+            DynamicRegistryManager registryManager) {
         this.packet = packet;
         this.isFullChunk = isFullChunk;
         this.dimension = dimension;
@@ -73,8 +92,10 @@ public class ChunkDataTranslator {
     }
 
     @ThreadSafe
-    public static <T extends Packet<?>> void asyncTranslatePacket(ChannelHandlerContext context, PacketInfo<T> packetInfo, byte[] data) {
-        ChunkPos pos = ConnectionInfo.protocol.extractChunkPos(packetInfo.getPacketClass(), new PacketByteBuf(Unpooled.wrappedBuffer(data)));
+    public static <T extends Packet<?>> void asyncTranslatePacket(ChannelHandlerContext context,
+            PacketInfo<T> packetInfo, byte[] data) {
+        ChunkPos pos = ConnectionInfo.protocol.extractChunkPos(packetInfo.getPacketClass(),
+                new PacketByteBuf(Unpooled.wrappedBuffer(data)));
         executor.submit(new TranslationTask(pos, () -> {
             try {
                 TransformerByteBuf buf = new TransformerByteBuf(Unpooled.wrappedBuffer(data), context);
@@ -85,7 +106,9 @@ public class ChunkDataTranslator {
                     holder.multiconnect_getUserData().putAll(userData);
                 }
                 if (buf.readableBytes() != 0) {
-                    throw new IOException("Packet " + packet.getClass().getSimpleName() + " was larger than I expected, found " + buf.readableBytes() + " bytes extra whilst reading packet");
+                    throw new IOException(
+                            "Packet " + packet.getClass().getSimpleName() + " was larger than I expected, found "
+                                    + buf.readableBytes() + " bytes extra whilst reading packet");
                 }
                 // handle packet
                 ((ChannelInboundHandler) context.handler()).channelRead(context, packet);
@@ -112,7 +135,8 @@ public class ChunkDataTranslator {
         boolean isFullChunk = ((IUserDataHolder) packet).multiconnect_getUserData(Protocol_1_16_5.FULL_CHUNK_KEY);
         DimensionType dimension = mc.world.getDimension();
         ((IUserDataHolder) packet).multiconnect_setUserData(DIMENSION_KEY, dimension);
-        ChunkDataTranslator translator = new ChunkDataTranslator(packet, isFullChunk, dimension, networkHandler.getRegistryManager());
+        ChunkDataTranslator translator = new ChunkDataTranslator(packet, isFullChunk, dimension,
+                networkHandler.getRegistryManager());
         executor.submit(new TranslationTask(new ChunkPos(packet.getX(), packet.getZ()), () -> {
             try {
                 CURRENT_TRANSLATOR.set(translator);
@@ -120,12 +144,14 @@ public class ChunkDataTranslator {
                 TransformerByteBuf buf = new TransformerByteBuf(packet.getChunkData().getSectionsDataBuf(), null);
                 TypedMap userData = ((IUserDataHolder) packet).multiconnect_getUserData();
                 buf.readTopLevelType(ChunkData.class, userData);
-                ChunkData chunkData = ChunkData.read(dimension.getMinimumY(), dimension.getMinimumY() + dimension.getHeight() - 1, userData, buf);
+                ChunkData chunkData = ChunkData.read(dimension.getMinimumY(),
+                        dimension.getMinimumY() + dimension.getHeight() - 1, userData, buf);
 
                 if (!isFullChunk) {
                     List<ChunkDeltaUpdateS2CPacket> deltaUpdatePackets = new ArrayList<>();
                     for (ChunkSection section : chunkData.getSections()) {
-                        if (section == null) continue;
+                        if (section == null)
+                            continue;
 
                         ShortSet positions = new ShortOpenHashSet();
                         BlockPos.Mutable mutable = new BlockPos.Mutable();
@@ -137,7 +163,8 @@ public class ChunkDataTranslator {
                             }
                         }
 
-                        ChunkSectionPos sectionPos = ChunkSectionPos.from(new ChunkPos(packet.getX(), packet.getZ()), section.getYOffset() >> 4);
+                        ChunkSectionPos sectionPos = ChunkSectionPos.from(new ChunkPos(packet.getX(), packet.getZ()),
+                                section.getYOffset() >> 4);
                         deltaUpdatePackets.add(new ChunkDeltaUpdateS2CPacket(sectionPos, positions, section, true));
                     }
 
@@ -160,7 +187,8 @@ public class ChunkDataTranslator {
 
                 var blocksNeedingConnectionUpdate = new EnumMap<EightWayDirection, IntSet>(EightWayDirection.class);
                 ConnectionInfo.protocol.getBlockConnector().fixChunkData(chunkData, blocksNeedingConnectionUpdate);
-                ((IUserDataHolder) packet).multiconnect_setUserData(BlockConnections.BLOCKS_NEEDING_UPDATE_KEY, blocksNeedingConnectionUpdate);
+                ((IUserDataHolder) packet).multiconnect_setUserData(BlockConnections.BLOCKS_NEEDING_UPDATE_KEY,
+                        blocksNeedingConnectionUpdate);
 
                 ConnectionInfo.protocol.postTranslateChunk(translator, chunkData);
                 ((ChunkDataAccessor) packet.getChunkData()).setSectionsData(chunkData.toByteArray());
@@ -184,16 +212,17 @@ public class ChunkDataTranslator {
                     IUserDataHolder userDataHolder = (IUserDataHolder) packet;
                     List<String> extraLines = new ArrayList<>();
                     extraLines.add("Chunk pos: " + packet.getX() + ", " + packet.getZ());
-                    BitSet verticalStripBitmask = userDataHolder.multiconnect_getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
+                    BitSet verticalStripBitmask = userDataHolder
+                            .multiconnect_getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
                     if (verticalStripBitmask != null) {
                         extraLines.add("Vertical strip bitmask: " + verticalStripBitmask);
                     }
-                    extraLines.add("Dimension has sky light: " + userDataHolder.multiconnect_getUserData(DIMENSION_KEY).hasSkyLight());
-                    extraLines.add("Full chunk: " + userDataHolder.multiconnect_getUserData(Protocol_1_16_5.FULL_CHUNK_KEY));
-                    DebugUtils.logPacketDisconnectError(
-                            DebugUtils.getData(packet.getChunkData().getSectionsDataBuf()),
-                            extraLines.toArray(new String[0])
-                    );
+                    extraLines.add("Dimension has sky light: "
+                            + userDataHolder.multiconnect_getUserData(DIMENSION_KEY).hasSkyLight());
+                    extraLines.add(
+                            "Full chunk: " + userDataHolder.multiconnect_getUserData(Protocol_1_16_5.FULL_CHUNK_KEY));
+                    DebugUtils.logPacketDisconnectError(DebugUtils.getData(packet.getChunkData().getSectionsDataBuf()),
+                            extraLines.toArray(new String[0]));
                 }
                 LOGGER.error("Failed to translate chunk " + packet.getX() + ", " + packet.getZ(), e);
             }
@@ -203,7 +232,7 @@ public class ChunkDataTranslator {
     public static void clear() {
         executor.shutdownNow();
         try {
-            //noinspection ResultOfMethodCallIgnored
+            // noinspection ResultOfMethodCallIgnored
             executor.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             // meh
@@ -239,7 +268,8 @@ public class ChunkDataTranslator {
     private static ExecutorService createExecutor() {
         int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
         BlockingQueue<Runnable> queue = (BlockingQueue<Runnable>) (BlockingQueue<?>) new TranslationQueue();
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("multiconnect chunk translator #%d").build();
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("multiconnect chunk translator #%d")
+                .build();
         return new ThreadPoolExecutor(numThreads, numThreads, 0, TimeUnit.MILLISECONDS, queue, threadFactory) {
             @Override
             protected <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
@@ -258,14 +288,15 @@ public class ChunkDataTranslator {
         ChunkPos pos();
     }
 
-    private record TranslationTask(ChunkPos pos, Runnable task) implements Runnable, IHasChunkPos {
+    public record TranslationTask(ChunkPos pos, Runnable task) implements Runnable, IHasChunkPos {
         @Override
         public void run() {
             task.run();
         }
     }
 
-    private record TranslationFutureTask<V>(RunnableFuture<V> delegate, ChunkPos pos) implements RunnableFuture<V>, IHasChunkPos {
+    public record TranslationFutureTask<V> (RunnableFuture<V> delegate, ChunkPos pos)
+            implements RunnableFuture<V>, IHasChunkPos {
         @Override
         public void run() {
             delegate.run();
@@ -292,7 +323,8 @@ public class ChunkDataTranslator {
         }
 
         @Override
-        public V get(long timeout, @NotNull TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        public V get(long timeout, @NotNull TimeUnit unit)
+                throws InterruptedException, ExecutionException, TimeoutException {
             return delegate.get(timeout, unit);
         }
     }
@@ -336,7 +368,7 @@ public class ChunkDataTranslator {
         @Override
         public IHasChunkPos take() throws InterruptedException {
             semaphore.acquire();
-            //noinspection ConstantConditions
+            // noinspection ConstantConditions
             return poll0();
         }
 

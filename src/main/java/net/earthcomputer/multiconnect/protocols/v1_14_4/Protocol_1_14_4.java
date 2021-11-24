@@ -9,7 +9,6 @@ import net.earthcomputer.multiconnect.protocols.v1_14_4.mixin.TridentEntityAcces
 import net.earthcomputer.multiconnect.protocols.v1_14_4.mixin.WolfEntityAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_15.Protocol_1_15;
 import net.earthcomputer.multiconnect.protocols.v1_15_2.Protocol_1_15_2;
-import net.earthcomputer.multiconnect.protocols.generic.ChunkData;
 import net.earthcomputer.multiconnect.protocols.v1_17_1.Protocol_1_17_1;
 import net.minecraft.block.BellBlock;
 import net.minecraft.block.Block;
@@ -28,6 +27,7 @@ import net.minecraft.entity.projectile.TridentEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.network.packet.s2c.play.ChunkData;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.sound.SoundEvent;
@@ -43,7 +43,8 @@ import java.util.List;
 
 public class Protocol_1_14_4 extends Protocol_1_15 {
 
-    public static final TrackedData<Float> OLD_WOLF_HEALTH = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.FLOAT);
+    public static final TrackedData<Float> OLD_WOLF_HEALTH = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.FLOAT);
     public static final Key<Biome[]> BIOME_DATA_KEY = Key.create("biomeData");
     public static final Key<List<DataTracker.Entry<?>>> DATA_TRACKER_ENTRIES_KEY = Key.create("dataTrackerEntries");
 
@@ -51,7 +52,8 @@ public class Protocol_1_14_4 extends Protocol_1_15 {
         ProtocolRegistry.registerInboundTranslator(ChunkData.class, buf -> {
             if (!ChunkDataTranslator.current().isFullChunk())
                 return;
-            BitSet verticalStripBitmask = ChunkDataTranslator.current().getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
+            BitSet verticalStripBitmask = ChunkDataTranslator.current()
+                    .getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
             buf.enablePassthroughMode();
             for (int sectionY = 0; sectionY < 16; sectionY++) {
                 if (verticalStripBitmask.get(sectionY)) {
@@ -166,7 +168,8 @@ public class Protocol_1_14_4 extends Protocol_1_15 {
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
         remove(packets, PlayerActionResponseS2CPacket.class);
-        insertAfter(packets, SynchronizeTagsS2CPacket.class, PacketInfo.of(PlayerActionResponseS2CPacket.class, PlayerActionResponseS2CPacket::new));
+        insertAfter(packets, SynchronizeTagsS2CPacket.class,
+                PacketInfo.of(PlayerActionResponseS2CPacket.class, PlayerActionResponseS2CPacket::new));
         return packets;
     }
 
@@ -219,11 +222,16 @@ public class Protocol_1_14_4 extends Protocol_1_15 {
         registry.unregister(SoundEvents.ENTITY_IRON_GOLEM_DAMAGE);
         registry.unregister(SoundEvents.ENTITY_IRON_GOLEM_REPAIR);
 
-        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_ENDER_DRAGON, SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_ENDERMAN, "entity.parrot.imitate.enderman");
-        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_MAGMA_CUBE, SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_PANDA, "entity.parrot.imitate.panda");
-        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_PILLAGER, SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_POLAR_BEAR, "entity.parrot.imitate.polar_bear");
-        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_WITHER_SKELETON, SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_WOLF, "entity.parrot.imitate.wolf");
-        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_ZOMBIE, SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_ZOMBIE_PIGMAN, "entity.parrot.imitate.zombie_pigman");
+        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_ENDER_DRAGON,
+                SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_ENDERMAN, "entity.parrot.imitate.enderman");
+        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_MAGMA_CUBE,
+                SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_PANDA, "entity.parrot.imitate.panda");
+        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_PILLAGER,
+                SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_POLAR_BEAR, "entity.parrot.imitate.polar_bear");
+        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_WITHER_SKELETON,
+                SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_WOLF, "entity.parrot.imitate.wolf");
+        insertAfter(registry, SoundEvents.ENTITY_PARROT_IMITATE_ZOMBIE,
+                SoundEvents_1_14_4.ENTITY_PARROT_IMITATE_ZOMBIE_PIGMAN, "entity.parrot.imitate.zombie_pigman");
     }
 
     private void mutateBlockEntityTypeRegistry(ISimpleRegistry<BlockEntityType<?>> registry) {
@@ -271,26 +279,14 @@ public class Protocol_1_14_4 extends Protocol_1_15 {
         tags.addTag(BlockTags.FLOWERS, BlockTags.SMALL_FLOWERS);
         tags.addTag(BlockTags.FLOWERS, BlockTags.TALL_FLOWERS);
         tags.add(BlockTags.BEEHIVES);
-        tags.add(BlockTags.CROPS, Blocks.BEETROOTS, Blocks.CARROTS, Blocks.POTATOES, Blocks.WHEAT, Blocks.MELON_STEM, Blocks.PUMPKIN_STEM);
+        tags.add(BlockTags.CROPS, Blocks.BEETROOTS, Blocks.CARROTS, Blocks.POTATOES, Blocks.WHEAT, Blocks.MELON_STEM,
+                Blocks.PUMPKIN_STEM);
         tags.add(BlockTags.BEE_GROWABLES);
-        tags.add(BlockTags.SHULKER_BOXES,
-                Blocks.SHULKER_BOX,
-                Blocks.BLACK_SHULKER_BOX,
-                Blocks.BLUE_SHULKER_BOX,
-                Blocks.BROWN_SHULKER_BOX,
-                Blocks.CYAN_SHULKER_BOX,
-                Blocks.GRAY_SHULKER_BOX,
-                Blocks.GREEN_SHULKER_BOX,
-                Blocks.LIGHT_BLUE_SHULKER_BOX,
-                Blocks.LIGHT_GRAY_SHULKER_BOX,
-                Blocks.LIME_SHULKER_BOX,
-                Blocks.MAGENTA_SHULKER_BOX,
-                Blocks.ORANGE_SHULKER_BOX,
-                Blocks.PINK_SHULKER_BOX,
-                Blocks.PURPLE_SHULKER_BOX,
-                Blocks.RED_SHULKER_BOX,
-                Blocks.WHITE_SHULKER_BOX,
-                Blocks.YELLOW_SHULKER_BOX);
+        tags.add(BlockTags.SHULKER_BOXES, Blocks.SHULKER_BOX, Blocks.BLACK_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX,
+                Blocks.BROWN_SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX,
+                Blocks.LIGHT_BLUE_SHULKER_BOX, Blocks.LIGHT_GRAY_SHULKER_BOX, Blocks.LIME_SHULKER_BOX,
+                Blocks.MAGENTA_SHULKER_BOX, Blocks.ORANGE_SHULKER_BOX, Blocks.PINK_SHULKER_BOX,
+                Blocks.PURPLE_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.WHITE_SHULKER_BOX, Blocks.YELLOW_SHULKER_BOX);
         tags.add(BlockTags.PORTALS, Blocks.NETHER_PORTAL, Blocks.END_PORTAL, Blocks.END_GATEWAY);
         super.addExtraBlockTags(tags);
     }
@@ -314,7 +310,8 @@ public class Protocol_1_14_4 extends Protocol_1_15 {
     public float getBlockHardness(BlockState state, float hardness) {
         hardness = super.getBlockHardness(state, hardness);
         Block block = state.getBlock();
-        if (block == Blocks.END_STONE_BRICKS || block == Blocks.END_STONE_BRICK_SLAB || block == Blocks.END_STONE_BRICK_STAIRS || block == Blocks.END_STONE_BRICK_WALL) {
+        if (block == Blocks.END_STONE_BRICKS || block == Blocks.END_STONE_BRICK_SLAB
+                || block == Blocks.END_STONE_BRICK_STAIRS || block == Blocks.END_STONE_BRICK_WALL) {
             hardness = 0.8f;
         }
         return hardness;
@@ -323,7 +320,8 @@ public class Protocol_1_14_4 extends Protocol_1_15 {
     @Override
     public float getBlockResistance(Block block, float resistance) {
         resistance = super.getBlockResistance(block, resistance);
-        if (block == Blocks.END_STONE_BRICKS || block == Blocks.END_STONE_BRICK_SLAB || block == Blocks.END_STONE_BRICK_STAIRS || block == Blocks.END_STONE_BRICK_WALL) {
+        if (block == Blocks.END_STONE_BRICKS || block == Blocks.END_STONE_BRICK_SLAB
+                || block == Blocks.END_STONE_BRICK_STAIRS || block == Blocks.END_STONE_BRICK_WALL) {
             resistance = 0.8f;
         }
         return resistance;

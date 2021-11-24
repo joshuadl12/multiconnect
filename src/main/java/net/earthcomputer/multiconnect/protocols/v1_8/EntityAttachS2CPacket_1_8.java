@@ -36,13 +36,14 @@ public class EntityAttachS2CPacket_1_8 implements Packet<ClientPlayPacketListene
 
     @Override
     public void apply(ClientPlayPacketListener listener) {
-        NetworkThreadUtils.forceMainThread(this, listener, MinecraftClient.getInstance());
+        MinecraftClient client = MinecraftClient.getInstance();
+        NetworkThreadUtils.forceMainThread(this, listener, client);
 
         if (attachType == 0) { // mount
             int vehicleId;
             int[] passengerIds;
 
-            ClientWorld world = MinecraftClient.getInstance().world;
+            ClientWorld world = client.world;
             if (world == null) {
                 return;
             }
@@ -67,7 +68,7 @@ public class EntityAttachS2CPacket_1_8 implements Packet<ClientPlayPacketListene
                 }
             } else {
                 vehicleId = toEntityId;
-                passengerIds = new int[] {fromEntityId};
+                passengerIds = new int[] { fromEntityId };
 
                 Entity vehicle = world.getEntityById(toEntityId);
                 if (vehicle instanceof BoatEntity) {
@@ -75,19 +76,21 @@ public class EntityAttachS2CPacket_1_8 implements Packet<ClientPlayPacketListene
                 }
             }
 
-            EntityPassengersSetS2CPacket packet = Utils.createPacket(EntityPassengersSetS2CPacket.class, EntityPassengersSetS2CPacket::new, Protocols.V1_9, buf -> {
-                buf.pendingRead(VarInt.class, new VarInt(vehicleId));
-                buf.pendingRead(int[].class, passengerIds);
-                buf.applyPendingReads();
-            });
+            EntityPassengersSetS2CPacket packet = Utils.createPacket(EntityPassengersSetS2CPacket.class,
+                    EntityPassengersSetS2CPacket::new, Protocols.V1_9, buf -> {
+                        buf.pendingRead(VarInt.class, new VarInt(vehicleId));
+                        buf.pendingRead(int[].class, passengerIds);
+                        buf.applyPendingReads();
+                    });
 
             listener.onEntityPassengersSet(packet);
         } else if (attachType == 1) { // leash
-            EntityAttachS2CPacket packet = Utils.createPacket(EntityAttachS2CPacket.class, EntityAttachS2CPacket::new, Protocols.V1_9, buf -> {
-                buf.pendingRead(Integer.class, fromEntityId); // attached id
-                buf.pendingRead(Integer.class, toEntityId); // holding id
-                buf.applyPendingReads();
-            });
+            EntityAttachS2CPacket packet = Utils.createPacket(EntityAttachS2CPacket.class, EntityAttachS2CPacket::new,
+                    Protocols.V1_9, buf -> {
+                        buf.pendingRead(Integer.class, fromEntityId); // attached id
+                        buf.pendingRead(Integer.class, toEntityId); // holding id
+                        buf.applyPendingReads();
+                    });
             listener.onEntityAttach(packet);
         }
     }

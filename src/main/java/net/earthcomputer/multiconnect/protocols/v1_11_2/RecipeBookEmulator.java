@@ -1,5 +1,8 @@
 package net.earthcomputer.multiconnect.protocols.v1_11_2;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.earthcomputer.multiconnect.protocols.v1_12.PlaceRecipeC2SPacket_1_12;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.AckScreenActionS2CPacket_1_16_5;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.ClickSlotC2SPacket_1_16_5;
@@ -18,10 +21,9 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Pair;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class RecipeBookEmulator {
+
+    private final MinecraftClient client = MinecraftClient.getInstance();
 
     private final ScreenHandler screenHandler;
 
@@ -32,12 +34,14 @@ public class RecipeBookEmulator {
     }
 
     public static void setCraftingResultSlot(int syncId, ScreenHandler screenHandler, CraftingInventory craftingInv) {
-        ClientPlayNetworkHandler networkHandler = MinecraftClient.getInstance().getNetworkHandler();
+        final MinecraftClient static_client = MinecraftClient.getInstance();
+        ClientPlayNetworkHandler networkHandler = static_client.getNetworkHandler();
         assert networkHandler != null;
-        ItemStack result = networkHandler.getRecipeManager().getFirstMatch(RecipeType.CRAFTING, craftingInv, MinecraftClient.getInstance().world)
-                .map(recipe -> recipe.craft(craftingInv))
-                .orElse(ItemStack.EMPTY);
-        networkHandler.onScreenHandlerSlotUpdate(new ScreenHandlerSlotUpdateS2CPacket(syncId, screenHandler.getRevision(), 0, result));
+        ItemStack result = networkHandler.getRecipeManager()
+                .getFirstMatch(RecipeType.CRAFTING, craftingInv, static_client.world)
+                .map(recipe -> recipe.craft(craftingInv)).orElse(ItemStack.EMPTY);
+        networkHandler.onScreenHandlerSlotUpdate(
+                new ScreenHandlerSlotUpdateS2CPacket(syncId, screenHandler.getRevision(), 0, result));
     }
 
     public void emulateRecipePlacement(PlaceRecipeC2SPacket_1_12 packet) {
@@ -91,7 +95,8 @@ public class RecipeBookEmulator {
         }
     }
 
-    private List<Pair<PlaceRecipeC2SPacket_1_12.Transaction, Integer>> mergeTransactions(List<PlaceRecipeC2SPacket_1_12.Transaction> transactions) {
+    private List<Pair<PlaceRecipeC2SPacket_1_12.Transaction, Integer>> mergeTransactions(
+            List<PlaceRecipeC2SPacket_1_12.Transaction> transactions) {
         // merge
         var merged = new ArrayList<Pair<PlaceRecipeC2SPacket_1_12.Transaction, Integer>>();
         for (var transaction : transactions) {
@@ -121,19 +126,18 @@ public class RecipeBookEmulator {
             if (slot == -1) {
                 return null;
             }
-            merged.set(i, new Pair<>(
-                    new PlaceRecipeC2SPacket_1_12.Transaction(firstTransaction.originalStack, firstTransaction.stack,
-                            firstTransaction.placedOn, firstTransaction.craftingSlot, slot),
-                    transaction.getRight()
-            ));
+            merged.set(i,
+                    new Pair<>(new PlaceRecipeC2SPacket_1_12.Transaction(firstTransaction.originalStack,
+                            firstTransaction.stack, firstTransaction.placedOn, firstTransaction.craftingSlot, slot),
+                            transaction.getRight()));
         }
 
         return merged;
     }
 
     private int getInvSlot(int invSlot) {
-        assert MinecraftClient.getInstance().player != null;
-        PlayerInventory playerInv = MinecraftClient.getInstance().player.getInventory();
+        assert this.client.player != null;
+        PlayerInventory playerInv = this.client.player.getInventory();
 
         for (Slot slot : screenHandler.slots) {
             if (slot.inventory == playerInv && slot.getIndex() == invSlot) {
@@ -144,44 +148,53 @@ public class RecipeBookEmulator {
     }
 
     private void transfer(int fromSlot, int toSlot, int count, ItemStack placedOn, ItemStack clickedStack) {
-        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        ClientPlayerEntity player = client.player;
         assert player != null;
 
         // pickup (swap with cursor stack)
-        player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, fromSlot, 0, SlotActionType.PICKUP, clickedStack, Protocol_1_16_5.nextScreenActionId()));
+        player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, fromSlot, 0,
+                SlotActionType.PICKUP, clickedStack, Protocol_1_16_5.nextScreenActionId()));
 
         // place items
         if (count == clickedStack.getCount()) {
-            player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, toSlot, 0, SlotActionType.PICKUP, placedOn, Protocol_1_16_5.nextScreenActionId()));
+            player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, toSlot, 0,
+                    SlotActionType.PICKUP, placedOn, Protocol_1_16_5.nextScreenActionId()));
         } else {
             for (int i = 0; i < count; i++) {
                 ItemStack existingStack = clickedStack.copy();
                 existingStack.setCount(placedOn.getCount() + i);
-                player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, toSlot, 1, SlotActionType.PICKUP, existingStack, Protocol_1_16_5.nextScreenActionId()));
+                player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, toSlot, 1,
+                        SlotActionType.PICKUP, existingStack, Protocol_1_16_5.nextScreenActionId()));
             }
         }
 
         // return (pickup old cursor stack)
-        player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, fromSlot, 0, SlotActionType.PICKUP, screenHandler.getCursorStack(), Protocol_1_16_5.nextScreenActionId()));
+        player.networkHandler.sendPacket(new ClickSlotC2SPacket_1_16_5(screenHandler.syncId, fromSlot, 0,
+                SlotActionType.PICKUP, screenHandler.getCursorStack(), Protocol_1_16_5.nextScreenActionId()));
     }
 
     private void resyncContainer() {
-        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        ClientPlayerEntity player = this.client.player;
         assert player != null;
-        var interactionManager = MinecraftClient.getInstance().interactionManager;
+        var interactionManager = this.client.interactionManager;
         assert interactionManager != null;
 
-        int craftingResultSlotId = screenHandler instanceof AbstractRecipeScreenHandler ?
-                ((AbstractRecipeScreenHandler<?>) screenHandler).getCraftingResultSlotIndex() : -1;
+        int craftingResultSlotId = screenHandler instanceof AbstractRecipeScreenHandler
+                ? ((AbstractRecipeScreenHandler<?>) screenHandler).getCraftingResultSlotIndex()
+                : -1;
 
         for (Slot slot : screenHandler.slots) {
             if (slot.id == craftingResultSlotId) {
                 continue;
             }
-            // If the slot was correctly synced, will swap the cursor stack with the stack in that slot, and back again.
-            // If the slot was desynced or the container is locked due to a previous desync, the swap will be denied,
-            // and the server will require the client to acknowledge the new item. Since that acknowledgement is
-            // processed on the same thread as this code, it cannot happen in between, so the second packet will also
+            // If the slot was correctly synced, will swap the cursor stack with the stack
+            // in that slot, and back again.
+            // If the slot was desynced or the container is locked due to a previous desync,
+            // the swap will be denied,
+            // and the server will require the client to acknowledge the new item. Since
+            // that acknowledgement is
+            // processed on the same thread as this code, it cannot happen in between, so
+            // the second packet will also
             // be sent before the acknowledgement, so it will also be rejected.
             interactionManager.clickSlot(screenHandler.syncId, slot.id, 0, SlotActionType.PICKUP, player);
             interactionManager.clickSlot(screenHandler.syncId, slot.id, 0, SlotActionType.PICKUP, player);

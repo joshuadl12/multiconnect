@@ -9,14 +9,14 @@ import org.apache.logging.log4j.Logger;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public final class ServersExt {
 
     private static final Logger LOGGER = LogManager.getLogger("multiconnect");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final File configFile = new File(FabricLoader.getInstance().getConfigDir().toFile(), "multiconnect/servers_ext.json");
+    private static final File configFile = new File(FabricLoader.getInstance().getConfigDir().toFile(),
+            "multiconnect/servers_ext.json");
     private static ServersExt instance;
 
     public static ServersExt getInstance() {
@@ -37,7 +37,7 @@ public final class ServersExt {
     }
 
     public static void save() {
-        //noinspection ResultOfMethodCallIgnored
+        // noinspection ResultOfMethodCallIgnored
         configFile.getParentFile().mkdirs();
         try (FileWriter writer = new FileWriter(configFile)) {
             GSON.toJson(getInstance(), writer);
@@ -47,12 +47,15 @@ public final class ServersExt {
         }
     }
 
-    private ServersExt() {}
+    private ServersExt() {
+    }
 
     private Map<String, ServerExt> servers = new HashMap<>();
 
     private void normalize() {
-        servers = servers.entrySet().stream().collect(Collectors.toMap(entry -> ConnectionHandler.normalizeAddress(entry.getKey()), Map.Entry::getValue, (a, b) -> a, HashMap::new));
+        servers = servers.entrySet().stream()
+                .collect(Collectors.toMap(entry -> ConnectionHandler.normalizeAddress(entry.getKey()),
+                        Map.Entry::getValue, (a, b) -> a, HashMap::new));
     }
 
     public int getForcedProtocol(String address) {

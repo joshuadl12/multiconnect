@@ -27,21 +27,35 @@ import java.util.Set;
 @Mixin(SimpleRegistry.class)
 public abstract class MixinSimpleRegistry<T> extends MutableRegistry<T> implements ISimpleRegistry<T> {
 
-    @Shadow @Final private ObjectList<T> rawIdToEntry;
-    @Shadow @Final private Object2IntMap<T> entryToRawId;
-    @Shadow @Final private BiMap<Identifier, T> idToEntry;
-    @Shadow @Final private BiMap<RegistryKey<T>, T> keyToEntry;
-    @Shadow @Final private Map<T, Lifecycle> entryToLifecycle;
-    @Shadow protected Object[] randomEntries;
-    @Shadow private int nextId;
+    @Shadow
+    @Final
+    private ObjectList<T> rawIdToEntry;
+    @Shadow
+    @Final
+    private Object2IntMap<T> entryToRawId;
+    @Shadow
+    @Final
+    private BiMap<Identifier, T> idToEntry;
+    @Shadow
+    @Final
+    private BiMap<RegistryKey<T>, T> keyToEntry;
+    @Shadow
+    @Final
+    private Map<T, Lifecycle> entryToLifecycle;
+    @Shadow
+    protected Object[] randomEntries;
+    @Shadow
+    private int nextId;
 
-    @Unique private final Set<RegistryKey<T>> realEntries = new ObjectOpenCustomHashSet<>(Util.identityHashStrategy());
+    @Unique
+    private final Set<RegistryKey<T>> realEntries = new ObjectOpenCustomHashSet<>(Util.identityHashStrategy());
 
     public MixinSimpleRegistry(RegistryKey<? extends Registry<T>> registryKey, Lifecycle lifecycle) {
         super(registryKey, lifecycle);
     }
 
-    @Shadow public abstract <V extends T> V set(int rawId, RegistryKey<T> id, V value, Lifecycle lifecycle);
+    @Shadow
+    public abstract <V extends T> V set(int rawId, RegistryKey<T> id, V value, Lifecycle lifecycle);
 
     @Accessor
     @Override
@@ -92,8 +106,10 @@ public abstract class MixinSimpleRegistry<T> extends MutableRegistry<T> implemen
         realEntries.addAll(keyToEntry.keySet());
     }
 
-    @Unique private final List<IRegistryUpdateListener<T>> registerListeners = new ArrayList<>(0);
-    @Unique private final List<IRegistryUpdateListener<T>> unregisterListeners = new ArrayList<>(0);
+    @Unique
+    private final List<IRegistryUpdateListener<T>> registerListeners = new ArrayList<>(0);
+    @Unique
+    private final List<IRegistryUpdateListener<T>> unregisterListeners = new ArrayList<>(0);
 
     @Override
     public void register(T t, int id, RegistryKey<T> key, boolean sideEffects) {
@@ -221,7 +237,8 @@ public abstract class MixinSimpleRegistry<T> extends MutableRegistry<T> implemen
     public SimpleRegistry<T> copy() {
         SimpleRegistry<T> newRegistry = new SimpleRegistry<>(getRegistryKey(), getLifecycle());
         for (var entry : keyToEntry.entrySet()) {
-            newRegistry.set(entryToRawId.getInt(entry.getValue()), entry.getKey(), entry.getValue(), entryToLifecycle.get(entry.getValue()));
+            newRegistry.set(entryToRawId.getInt(entry.getValue()), entry.getKey(), entry.getValue(),
+                    entryToLifecycle.get(entry.getValue()));
         }
         return newRegistry;
     }

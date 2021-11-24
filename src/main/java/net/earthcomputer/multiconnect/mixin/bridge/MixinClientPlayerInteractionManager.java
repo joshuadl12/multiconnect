@@ -1,5 +1,11 @@
 package net.earthcomputer.multiconnect.mixin.bridge;
 
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
+
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.earthcomputer.multiconnect.impl.ConnectionInfo;
 import net.earthcomputer.multiconnect.protocols.generic.IServerboundSlotPacket;
@@ -11,17 +17,15 @@ import net.minecraft.network.Packet;
 import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
 import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
 import net.minecraft.screen.ScreenHandler;
-import org.spongepowered.asm.mixin.Final;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 @Mixin(value = ClientPlayerInteractionManager.class, priority = -1000)
 public class MixinClientPlayerInteractionManager {
-    @Shadow @Final private MinecraftClient client;
+    @Shadow
+    @Final
+    private MinecraftClient client;
 
-    @ModifyArg(method = {"clickCreativeStack", "dropCreativeStack"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/Packet;)V"), index = 0)
+    @ModifyArg(method = { "clickCreativeStack",
+            "dropCreativeStack" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/Packet;)V"), index = 0)
     private Packet<?> modifyCreativeActionPacket(Packet<?> packet) {
         if (packet instanceof CreativeInventoryActionC2SPacket creativePacket) {
             // shift slot ids in click slot packet
@@ -33,7 +37,7 @@ public class MixinClientPlayerInteractionManager {
                 creativePacket = new CreativeInventoryActionC2SPacket(slot, creativePacket.getItemStack());
             }
 
-            //noinspection ConstantConditions
+            // noinspection ConstantConditions
             ((IServerboundSlotPacket) creativePacket).multiconnect_setProcessed();
 
             return creativePacket;
@@ -58,10 +62,12 @@ public class MixinClientPlayerInteractionManager {
                 modifiedStacks.put(entry.getIntKey(), entry.getValue());
             }
             if (modified) {
-                clickSlotPacket = new ClickSlotC2SPacket(clickSlotPacket.getSyncId(), clickSlotPacket.getRevision(), slot, clickSlotPacket.getButton(), clickSlotPacket.getActionType(), clickSlotPacket.getStack(), modifiedStacks);
+                clickSlotPacket = new ClickSlotC2SPacket(clickSlotPacket.getSyncId(), clickSlotPacket.getRevision(),
+                        slot, clickSlotPacket.getButton(), clickSlotPacket.getActionType(), clickSlotPacket.getStack(),
+                        modifiedStacks);
             }
 
-            //noinspection ConstantConditions
+            // noinspection ConstantConditions
             ((IServerboundSlotPacket) clickSlotPacket).multiconnect_setProcessed();
 
             return clickSlotPacket;

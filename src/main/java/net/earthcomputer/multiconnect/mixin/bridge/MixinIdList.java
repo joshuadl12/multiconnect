@@ -24,14 +24,22 @@ import java.util.stream.Stream;
 @Mixin(IdList.class)
 public class MixinIdList<T> implements IIdList<T> {
 
-    @Shadow private int nextId;
-    @Shadow @Final private Object2IntMap<T> idMap;
-    @Shadow @Final private List<T> list;
+    @Shadow
+    private int nextId;
+    @Shadow
+    @Final
+    private Object2IntMap<T> idMap;
+    @Shadow
+    @Final
+    private List<T> list;
 
-    @Unique private int minHighIds = Integer.MAX_VALUE;
-    @Unique private final Int2ObjectMap<T> highIdsMap = new Int2ObjectOpenHashMap<>();
+    @Unique
+    private int minHighIds = Integer.MAX_VALUE;
+    @Unique
+    private final Int2ObjectMap<T> highIdsMap = new Int2ObjectOpenHashMap<>();
 
-    @Unique private final ThreadLocal<T> defaultValue = new ThreadLocal<>();
+    @Unique
+    private final ThreadLocal<T> defaultValue = new ThreadLocal<>();
 
     @Redirect(method = "set", at = @At(value = "INVOKE", target = "Lit/unimi/dsi/fastutil/objects/Object2IntMap;put(Ljava/lang/Object;I)I", remap = false))
     private int redirectSetPut(Object2IntMap<T> instance, T key, int value) {
@@ -47,8 +55,7 @@ public class MixinIdList<T> implements IIdList<T> {
             if (nextId <= id)
                 nextId = id + 1;
             ci.cancel();
-        }
-        else if (id > minHighIds) {
+        } else if (id > minHighIds) {
             minHighIds = Integer.MAX_VALUE;
             while (id >= list.size())
                 list.add(null);
@@ -79,10 +86,8 @@ public class MixinIdList<T> implements IIdList<T> {
     @Inject(method = "iterator", at = @At("RETURN"), cancellable = true)
     private void onIterator(CallbackInfoReturnable<Iterator<T>> ci) {
         ci.setReturnValue(Iterators.concat(ci.getReturnValue(),
-                highIdsMap.int2ObjectEntrySet().stream()
-                        .sorted(Comparator.comparingInt(Int2ObjectMap.Entry::getIntKey))
-                        .map(Int2ObjectMap.Entry::getValue)
-                        .iterator()));
+                highIdsMap.int2ObjectEntrySet().stream().sorted(Comparator.comparingInt(Int2ObjectMap.Entry::getIntKey))
+                        .map(Int2ObjectMap.Entry::getValue).iterator()));
     }
 
     @Override

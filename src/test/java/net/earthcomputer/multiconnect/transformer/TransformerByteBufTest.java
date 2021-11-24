@@ -24,7 +24,7 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SuppressWarnings({"VariableUseSideOnly", "MethodCallSideOnly"})
+@SuppressWarnings({ "VariableUseSideOnly", "MethodCallSideOnly" })
 public class TransformerByteBufTest {
 
     @BeforeAll
@@ -44,8 +44,7 @@ public class TransformerByteBufTest {
 
     @Test
     public void testUntransformedRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry(),
-                1, 2, 3, 4, 5, 6, 7, 0xc0, 0x84, 0x3d);
+        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry(), 1, 2, 3, 4, 5, 6, 7, 0xc0, 0x84, 0x3d);
         assertEquals(1, buf.readByte());
         assertEquals(0x203, buf.readShort());
         assertEquals(0x4050607, buf.readInt());
@@ -54,37 +53,33 @@ public class TransformerByteBufTest {
 
     @Test
     public void testConsumedRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(0, LoginHelloS2CPacket.class, TransformerByteBuf::readByte),
-                1, 2);
+        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry().registerInboundTranslator(0,
+                LoginHelloS2CPacket.class, TransformerByteBuf::readByte), 1, 2);
         assertEquals(2, buf.readByte());
     }
 
     @Test
     public void testUnconsumedRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(-1, LoginHelloS2CPacket.class, TransformerByteBuf::readByte),
-                1, 2);
+        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry().registerInboundTranslator(-1,
+                LoginHelloS2CPacket.class, TransformerByteBuf::readByte), 1, 2);
         assertEquals(1, buf.readByte());
         assertEquals(2, buf.readByte());
     }
 
     @Test
     public void testPassthroughWithNestedTranslator() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(1, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.enablePassthroughMode();
-                        buf1.readVarInt();
-                        buf1.readVarInt();
-                        buf1.readVarInt();
-                        buf1.disablePassthroughMode();
-                        buf1.applyPendingReads();
-                    })
-                    .registerInboundTranslator(0, VarInt.class, buf1 -> {
-                        buf1.pendingRead(Byte.class, (byte) (buf1.readByte() & 0x7f));
-                        buf1.applyPendingReads();
-                    }),
-                    0xc0, 0x84, 0x3d);
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(1, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.enablePassthroughMode();
+                    buf1.readVarInt();
+                    buf1.readVarInt();
+                    buf1.readVarInt();
+                    buf1.disablePassthroughMode();
+                    buf1.applyPendingReads();
+                }).registerInboundTranslator(0, VarInt.class, buf1 -> {
+                    buf1.pendingRead(Byte.class, (byte) (buf1.readByte() & 0x7f));
+                    buf1.applyPendingReads();
+                }), 0xc0, 0x84, 0x3d);
         assertEquals(0xc0 & 0x7f, buf.readVarInt());
         assertEquals(0x84 & 0x7f, buf.readVarInt());
         assertEquals(0x3d, buf.readVarInt());
@@ -92,12 +87,11 @@ public class TransformerByteBufTest {
 
     @Test
     public void testPendingRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.pendingRead(Byte.class, (byte)3);
-                        buf1.applyPendingReads();
-                    }),
-                1, 2);
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.pendingRead(Byte.class, (byte) 3);
+                    buf1.applyPendingReads();
+                }), 1, 2);
         assertEquals(3, buf.readByte());
         assertEquals(1, buf.readByte());
         assertEquals(2, buf.readByte());
@@ -105,26 +99,24 @@ public class TransformerByteBufTest {
 
     @Test
     public void testPassthroughRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.enablePassthroughMode();
-                        buf1.readByte();
-                        buf1.disablePassthroughMode();
-                        buf1.applyPendingReads();
-                    }),
-                1, 2);
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.enablePassthroughMode();
+                    buf1.readByte();
+                    buf1.disablePassthroughMode();
+                    buf1.applyPendingReads();
+                }), 1, 2);
         assertEquals(1, buf.readByte());
         assertEquals(2, buf.readByte());
     }
 
     @Test
     public void testNestedRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(0, VarInt.class, buf1 -> {
-                        buf1.pendingRead(Byte.class, (byte)(buf1.readByte() & 0x7f));
-                        buf1.applyPendingReads();
-                    }),
-                0xc0, 0x84, 0x3d);
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(0, VarInt.class, buf1 -> {
+                    buf1.pendingRead(Byte.class, (byte) (buf1.readByte() & 0x7f));
+                    buf1.applyPendingReads();
+                }), 0xc0, 0x84, 0x3d);
         assertEquals(0xc0 & 0x7f, buf.readVarInt());
         assertEquals(0x84 & 0x7f, buf.readVarInt());
         assertEquals(0x3d, buf.readVarInt());
@@ -132,92 +124,83 @@ public class TransformerByteBufTest {
 
     @Test
     public void testNestedRead2() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.enablePassthroughMode();
-                        buf1.readUuid();
-                        buf1.disablePassthroughMode();
-                        buf1.applyPendingReads();
-                    })
-                    .registerInboundTranslator(1, UUID.class, buf1 -> {
-                        buf1.pendingRead(Long.class, buf1.readLong());
-                        buf1.applyPendingReads();
-                    }),
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.enablePassthroughMode();
+                    buf1.readUuid();
+                    buf1.disablePassthroughMode();
+                    buf1.applyPendingReads();
+                }).registerInboundTranslator(1, UUID.class, buf1 -> {
+                    buf1.pendingRead(Long.class, buf1.readLong());
+                    buf1.applyPendingReads();
+                }), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         assertEquals(new UUID(0, 0), buf.readUuid());
     }
 
     @Test
     public void testChainedRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(2, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.pendingRead(VarInt.class, new VarInt(Integer.parseInt(buf1.readString())));
-                        buf1.applyPendingReads();
-                    })
-                    .registerInboundTranslator(1, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.pendingRead(String.class, new StringBuilder(buf1.readString()).reverse().toString());
-                        buf1.applyPendingReads();
-                    })
-                    .registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.pendingRead(String.class, String.valueOf(buf1.readVarInt()));
-                        buf1.applyPendingReads();
-                    }),
-                0xd2, 0x09);
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(2, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.pendingRead(VarInt.class, new VarInt(Integer.parseInt(buf1.readString())));
+                    buf1.applyPendingReads();
+                }).registerInboundTranslator(1, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.pendingRead(String.class, new StringBuilder(buf1.readString()).reverse().toString());
+                    buf1.applyPendingReads();
+                }).registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.pendingRead(String.class, String.valueOf(buf1.readVarInt()));
+                    buf1.applyPendingReads();
+                }), 0xd2, 0x09);
         assertEquals(4321, buf.readVarInt());
     }
 
     @Test
     public void testSimpleTranslateRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(0, Integer.class, new InboundTranslator<>() {
-                        @Override
-                        public void onRead(TransformerByteBuf buf) {
-                        }
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(0, Integer.class, new InboundTranslator<>() {
+                    @Override
+                    public void onRead(TransformerByteBuf buf) {
+                    }
 
-                        @Override
-                        public Integer translate(Integer from) {
-                            return from + 47;
-                        }
-                    }),
-                0, 0, 0, 53);
+                    @Override
+                    public Integer translate(Integer from) {
+                        return from + 47;
+                    }
+                }), 0, 0, 0, 53);
         assertEquals(100, buf.readInt());
     }
 
     @Test
     public void testInapplicableTranslateRead() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(-1, Integer.class, new InboundTranslator<>() {
-                        @Override
-                        public void onRead(TransformerByteBuf buf) {
-                        }
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(-1, Integer.class, new InboundTranslator<>() {
+                    @Override
+                    public void onRead(TransformerByteBuf buf) {
+                    }
 
-                        @Override
-                        public Integer translate(Integer from) {
-                            return from + 47;
-                        }
-                    }),
-                    0, 0, 0, 53);
+                    @Override
+                    public Integer translate(Integer from) {
+                        return from + 47;
+                    }
+                }), 0, 0, 0, 53);
         assertEquals(53, buf.readInt());
     }
 
     @Test
     public void testAddMore() {
-        TransformerByteBuf buf = inboundBuf(new TranslatorRegistry()
-                    .registerInboundTranslator(1, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.enablePassthroughMode();
-                        buf1.readBoolean();
-                        buf1.pendingRead(Boolean.class, false);
-                        buf1.applyPendingReads();
-                    })
-                    .registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
-                        buf1.enablePassthroughMode();
-                        buf1.readBoolean();
-                        buf1.disablePassthroughMode();
-                        buf1.pendingRead(Boolean.class, false);
-                        buf1.pendingRead(Boolean.class, false);
-                        buf1.applyPendingReads();
-                    }),
-                1);
+        TransformerByteBuf buf = inboundBuf(
+                new TranslatorRegistry().registerInboundTranslator(1, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.enablePassthroughMode();
+                    buf1.readBoolean();
+                    buf1.pendingRead(Boolean.class, false);
+                    buf1.applyPendingReads();
+                }).registerInboundTranslator(0, LoginHelloS2CPacket.class, buf1 -> {
+                    buf1.enablePassthroughMode();
+                    buf1.readBoolean();
+                    buf1.disablePassthroughMode();
+                    buf1.pendingRead(Boolean.class, false);
+                    buf1.pendingRead(Boolean.class, false);
+                    buf1.applyPendingReads();
+                }), 1);
         assertTrue(buf.readBoolean());
         assertFalse(buf.readBoolean());
         assertFalse(buf.readBoolean());
@@ -236,9 +219,8 @@ public class TransformerByteBufTest {
 
     @Test
     public void testSkippedWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(0, LoginHelloC2SPacket.class, buf1 -> buf1.skipWrite(Byte.class)),
-                    1);
+        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry().registerOutboundTranslator(0,
+                LoginHelloC2SPacket.class, buf1 -> buf1.skipWrite(Byte.class)), 1);
         buf.writeByte(1); // skipped
         buf.writeByte(2);
         assertWrittenEquals(buf, 2);
@@ -246,9 +228,8 @@ public class TransformerByteBufTest {
 
     @Test
     public void testUnskippedWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(-1, LoginHelloC2SPacket.class, buf1 -> buf1.skipWrite(Byte.class)),
-                    2);
+        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry().registerOutboundTranslator(-1,
+                LoginHelloC2SPacket.class, buf1 -> buf1.skipWrite(Byte.class)), 2);
         buf.writeByte(1);
         buf.writeByte(2);
         assertWrittenEquals(buf, 1, 2);
@@ -256,12 +237,11 @@ public class TransformerByteBufTest {
 
     @Test
     public void testPendingWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(0, LoginHelloC2SPacket.class, buf1 -> {
-                        Supplier<Byte> val = buf1.passthroughWrite(Byte.class);
-                        buf1.pendingWrite(Byte.class, () -> (byte) (val.get() + 47), (Consumer<Byte>) buf1::writeByte);
-                    }),
-                    3);
+        TransformerByteBuf buf = outboundBuf(
+                new TranslatorRegistry().registerOutboundTranslator(0, LoginHelloC2SPacket.class, buf1 -> {
+                    Supplier<Byte> val = buf1.passthroughWrite(Byte.class);
+                    buf1.pendingWrite(Byte.class, () -> (byte) (val.get() + 47), (Consumer<Byte>) buf1::writeByte);
+                }), 3);
         buf.writeByte(53);
         buf.writeByte(0xcc);
         assertWrittenEquals(buf, 53, 100, 0xcc);
@@ -269,12 +249,11 @@ public class TransformerByteBufTest {
 
     @Test
     public void testNestedWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(0, VarInt.class, buf1 -> {
-                        Supplier<Byte> val = buf1.skipWrite(Byte.class);
-                        buf1.pendingWrite(Byte.class, () -> (byte) (val.get() & 0x7f), (Consumer<Byte>) buf1::writeByte);
-                    }),
-                    4);
+        TransformerByteBuf buf = outboundBuf(
+                new TranslatorRegistry().registerOutboundTranslator(0, VarInt.class, buf1 -> {
+                    Supplier<Byte> val = buf1.skipWrite(Byte.class);
+                    buf1.pendingWrite(Byte.class, () -> (byte) (val.get() & 0x7f), (Consumer<Byte>) buf1::writeByte);
+                }), 4);
         buf.writeByte(47);
         buf.writeVarInt(1000000);
         assertWrittenEquals(buf, 47, 0xc0 & 0x7f, 0x84, 0x3d);
@@ -282,99 +261,98 @@ public class TransformerByteBufTest {
 
     @Test
     public void testInapplicableNewTranslatorWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(1, VarInt.class, buf1 -> {
-                        Supplier<Byte> val = buf1.skipWrite(Byte.class);
-                        buf1.pendingWrite(Byte.class, () -> (byte) (val.get() & 0x7f), (Consumer<Byte>) buf1::writeByte);
-                    })
-                    .registerOutboundTranslator(0, LoginHelloC2SPacket.class, buf1 -> {
-                        Supplier<VarInt> val = buf1.skipWrite(VarInt.class);
-                        buf1.pendingWrite(Integer.class, () -> val.get().get(), buf1::writeInt);
-                    }),
-                    4);
+        TransformerByteBuf buf = outboundBuf(
+                new TranslatorRegistry().registerOutboundTranslator(1, VarInt.class, buf1 -> {
+                    Supplier<Byte> val = buf1.skipWrite(Byte.class);
+                    buf1.pendingWrite(Byte.class, () -> (byte) (val.get() & 0x7f), (Consumer<Byte>) buf1::writeByte);
+                }).registerOutboundTranslator(0, LoginHelloC2SPacket.class, buf1 -> {
+                    Supplier<VarInt> val = buf1.skipWrite(VarInt.class);
+                    buf1.pendingWrite(Integer.class, () -> val.get().get(), buf1::writeInt);
+                }), 4);
         buf.writeVarInt(1000000);
         assertWrittenEquals(buf, 0, 0xf, 0x42, 0x40);
     }
 
     @Test
     public void testChainedWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(2, LoginHelloC2SPacket.class, buf1 -> {
-                        Supplier<VarInt> val = buf1.skipWrite(VarInt.class);
-                        buf1.pendingWrite(String.class, () -> String.valueOf(val.get().get()), buf1::writeString);
-                    })
-                    .registerOutboundTranslator(1, LoginHelloC2SPacket.class, buf1 -> {
-                        Supplier<String> val = buf1.skipWrite(String.class);
-                        buf1.pendingWrite(String.class, () -> new StringBuilder(val.get()).reverse().toString(), buf1::writeString);
-                    })
-                    .registerOutboundTranslator(0, LoginHelloC2SPacket.class, buf1 -> {
-                        Supplier<String> val = buf1.skipWrite(String.class);
-                        buf1.pendingWrite(VarInt.class, () -> new VarInt(Integer.parseInt(val.get())), val1 -> buf1.writeVarInt(val1.get()));
-                    }),
-                    3);
+        TransformerByteBuf buf = outboundBuf(
+                new TranslatorRegistry().registerOutboundTranslator(2, LoginHelloC2SPacket.class, buf1 -> {
+                    Supplier<VarInt> val = buf1.skipWrite(VarInt.class);
+                    buf1.pendingWrite(String.class, () -> String.valueOf(val.get().get()), buf1::writeString);
+                }).registerOutboundTranslator(1, LoginHelloC2SPacket.class, buf1 -> {
+                    Supplier<String> val = buf1.skipWrite(String.class);
+                    buf1.pendingWrite(String.class, () -> new StringBuilder(val.get()).reverse().toString(),
+                            buf1::writeString);
+                }).registerOutboundTranslator(0, LoginHelloC2SPacket.class, buf1 -> {
+                    Supplier<String> val = buf1.skipWrite(String.class);
+                    buf1.pendingWrite(VarInt.class, () -> new VarInt(Integer.parseInt(val.get())),
+                            val1 -> buf1.writeVarInt(val1.get()));
+                }), 3);
         buf.writeVarInt(4321);
         assertWrittenEquals(buf, 0xd2, 0x09);
     }
 
     @Test
     public void testSimpleTranslateWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(0, Integer.class, new OutboundTranslator<>() {
-                        @Override
-                        public void onWrite(TransformerByteBuf buf) {
-                        }
+        TransformerByteBuf buf = outboundBuf(
+                new TranslatorRegistry().registerOutboundTranslator(0, Integer.class, new OutboundTranslator<>() {
+                    @Override
+                    public void onWrite(TransformerByteBuf buf) {
+                    }
 
-                        @Override
-                        public Integer translate(Integer from) {
-                            return from + 47;
-                        }
-                    }),
-                    4);
+                    @Override
+                    public Integer translate(Integer from) {
+                        return from + 47;
+                    }
+                }), 4);
         buf.writeInt(53);
         assertWrittenEquals(buf, 0, 0, 0, 100);
     }
 
     @Test
     public void testInapplicableTranslateWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                        .registerOutboundTranslator(-1, Integer.class, new OutboundTranslator<>() {
-                            @Override
-                            public void onWrite(TransformerByteBuf buf) {
-                            }
+        TransformerByteBuf buf = outboundBuf(
+                new TranslatorRegistry().registerOutboundTranslator(-1, Integer.class, new OutboundTranslator<>() {
+                    @Override
+                    public void onWrite(TransformerByteBuf buf) {
+                    }
 
-                            @Override
-                            public Integer translate(Integer from) {
-                                return from + 47;
-                            }
-                        }),
-                4);
+                    @Override
+                    public Integer translate(Integer from) {
+                        return from + 47;
+                    }
+                }), 4);
         buf.writeInt(53);
         assertWrittenEquals(buf, 0, 0, 0, 53);
     }
 
     @Test
     public void testMultiplePendingWrite() {
-        TransformerByteBuf buf = outboundBuf(new TranslatorRegistry()
-                    .registerOutboundTranslator(1, LoginHelloC2SPacket.class, buf1 -> {
-                        Supplier<Hand> hand = buf1.skipWrite(Hand.class);
-                        Supplier<BlockHitResult> hitResult = buf1.skipWrite(BlockHitResult.class);
+        TransformerByteBuf buf = outboundBuf(
+                new TranslatorRegistry().registerOutboundTranslator(1, LoginHelloC2SPacket.class, buf1 -> {
+                    Supplier<Hand> hand = buf1.skipWrite(Hand.class);
+                    Supplier<BlockHitResult> hitResult = buf1.skipWrite(BlockHitResult.class);
 
-                        buf1.pendingWrite(BlockPos.class, () -> hitResult.get().getBlockPos(), buf1::writeBlockPos);
-                        buf1.pendingWrite(Direction.class, () -> hitResult.get().getSide(), buf1::writeEnumConstant);
-                        buf1.pendingWrite(Hand.class, hand, buf1::writeEnumConstant);
-                        buf1.pendingWrite(Float.class, () -> (float) (hitResult.get().getPos().x - hitResult.get().getBlockPos().getX()), buf1::writeFloat);
-                        buf1.pendingWrite(Float.class, () -> (float) (hitResult.get().getPos().y - hitResult.get().getBlockPos().getY()), buf1::writeFloat);
-                        buf1.pendingWrite(Float.class, () -> (float) (hitResult.get().getPos().z - hitResult.get().getBlockPos().getZ()), buf1::writeFloat);
-                    })
-                    .registerOutboundTranslator(1, BlockPos.class, buf1 -> {
-                        Supplier<Long> val = buf1.skipWrite(Long.class);
-                        buf1.pendingWrite(Long.class, () -> {
-                            BlockPos pos = BlockPos.fromLong(val.get());
-                            pos = new BlockPos(pos.getZ(), pos.getY(), pos.getX());
-                            return pos.asLong();
-                        }, buf1::writeLong);
-                    }),
-                    22);
+                    buf1.pendingWrite(BlockPos.class, () -> hitResult.get().getBlockPos(), buf1::writeBlockPos);
+                    buf1.pendingWrite(Direction.class, () -> hitResult.get().getSide(), buf1::writeEnumConstant);
+                    buf1.pendingWrite(Hand.class, hand, buf1::writeEnumConstant);
+                    buf1.pendingWrite(Float.class,
+                            () -> (float) (hitResult.get().getPos().x - hitResult.get().getBlockPos().getX()),
+                            buf1::writeFloat);
+                    buf1.pendingWrite(Float.class,
+                            () -> (float) (hitResult.get().getPos().y - hitResult.get().getBlockPos().getY()),
+                            buf1::writeFloat);
+                    buf1.pendingWrite(Float.class,
+                            () -> (float) (hitResult.get().getPos().z - hitResult.get().getBlockPos().getZ()),
+                            buf1::writeFloat);
+                }).registerOutboundTranslator(1, BlockPos.class, buf1 -> {
+                    Supplier<Long> val = buf1.skipWrite(Long.class);
+                    buf1.pendingWrite(Long.class, () -> {
+                        BlockPos pos = BlockPos.fromLong(val.get());
+                        pos = new BlockPos(pos.getZ(), pos.getY(), pos.getX());
+                        return pos.asLong();
+                    }, buf1::writeLong);
+                }), 22);
         buf.writeEnumConstant(Hand.OFF_HAND);
         buf.writeBlockHitResult(new BlockHitResult(new Vec3d(2, 3, 5), Direction.WEST, new BlockPos(7, 11, 13), false));
 
@@ -391,9 +369,8 @@ public class TransformerByteBufTest {
         return outboundBuf(LoginHelloC2SPacket.class, registry, capacity);
     }
 
-    public static TransformerByteBuf inboundBuf(Class<? extends Packet<?>> packetClass,
-                                                TranslatorRegistry registry,
-                                                int... arr) {
+    public static TransformerByteBuf inboundBuf(Class<? extends Packet<?>> packetClass, TranslatorRegistry registry,
+            int... arr) {
         byte[] bytes = new byte[arr.length];
         for (int i = 0; i < arr.length; i++)
             bytes[i] = (byte) arr[i];
@@ -404,9 +381,8 @@ public class TransformerByteBufTest {
         return transformerBuf;
     }
 
-    public static TransformerByteBuf outboundBuf(Class<? extends Packet<?>> packetClass,
-                                                 TranslatorRegistry registry,
-                                                 int capacity) {
+    public static TransformerByteBuf outboundBuf(Class<? extends Packet<?>> packetClass, TranslatorRegistry registry,
+            int capacity) {
         ByteBuf buf = ByteBufAllocator.DEFAULT.buffer(capacity, capacity);
         TransformerByteBuf transformerBuf = new TransformerByteBuf(buf, null, registry);
         transformerBuf.writeTopLevelType(packetClass, null);

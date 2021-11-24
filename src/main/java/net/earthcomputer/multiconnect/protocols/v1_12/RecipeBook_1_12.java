@@ -1,5 +1,11 @@
 package net.earthcomputer.multiconnect.protocols.v1_12;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.earthcomputer.multiconnect.api.Protocols;
@@ -18,11 +24,6 @@ import net.minecraft.recipe.ShapedRecipe;
 import net.minecraft.screen.AbstractFurnaceScreenHandler;
 import net.minecraft.screen.AbstractRecipeScreenHandler;
 import net.minecraft.screen.slot.Slot;
-import org.apache.logging.log4j.LogManager;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
 public class RecipeBook_1_12<C extends Inventory> {
 
@@ -31,7 +32,8 @@ public class RecipeBook_1_12<C extends Inventory> {
     private final IRecipeBookWidget iRecipeBookWidget;
     private final AbstractRecipeScreenHandler<C> screenHandler;
 
-    public RecipeBook_1_12(RecipeBookWidget recipeBookWidget, IRecipeBookWidget iRecipeBookWidget, AbstractRecipeScreenHandler<C> screenHandler) {
+    public RecipeBook_1_12(RecipeBookWidget recipeBookWidget, IRecipeBookWidget iRecipeBookWidget,
+            AbstractRecipeScreenHandler<C> screenHandler) {
         this.recipeBookWidget = recipeBookWidget;
         this.iRecipeBookWidget = iRecipeBookWidget;
         this.screenHandler = screenHandler;
@@ -82,7 +84,8 @@ public class RecipeBook_1_12<C extends Inventory> {
         int possibleCraftCount = iRecipeBookWidget.getRecipeFinder().countCrafts(recipe, null);
 
         if (alreadyPlaced) {
-            // check each item in the input to see if we're already at the max crafts possible
+            // check each item in the input to see if we're already at the max crafts
+            // possible
             boolean canPlaceMore = false;
 
             for (int i = 0; i < screenHandler.getCraftingSlotCount(); i++) {
@@ -138,7 +141,8 @@ public class RecipeBook_1_12<C extends Inventory> {
 
         int serverSlot = 1;
         for (int i = 0; i < screenHandler.getCraftingSlotCount(); i++) {
-            if (!isPartOfCraftMatrix(i)) continue;
+            if (!isPartOfCraftMatrix(i))
+                continue;
 
             ItemStack stack = screenHandler.getSlot(i).getStack();
 
@@ -188,10 +192,12 @@ public class RecipeBook_1_12<C extends Inventory> {
             // craft all
             stackSize = possibleCraftCount;
         } else if (alreadyPlaced) {
-            // craft single, find the item already in place with the minimum count and add one more craft than that
+            // craft single, find the item already in place with the minimum count and add
+            // one more craft than that
             stackSize = 64;
             for (int i = 0; i < screenHandler.getCraftingSlotCount(); i++) {
-                if (!isPartOfCraftMatrix(i)) continue;
+                if (!isPartOfCraftMatrix(i))
+                    continue;
 
                 ItemStack stack = screenHandler.getSlot(i).getStack();
                 if (!stack.isEmpty() && stack.getCount() < stackSize) {
@@ -207,7 +213,8 @@ public class RecipeBook_1_12<C extends Inventory> {
         return stackSize;
     }
 
-    private void placeRecipe(Recipe<C> recipe, List<Slot> slots, int placeCount, IntList inputItemIds, List<PlaceRecipeC2SPacket_1_12.Transaction> transactionsToMatrix) {
+    private void placeRecipe(Recipe<C> recipe, List<Slot> slots, int placeCount, IntList inputItemIds,
+            List<PlaceRecipeC2SPacket_1_12.Transaction> transactionsToMatrix) {
         int width = screenHandler.getCraftingWidth();
         int height = screenHandler.getCraftingHeight();
 
@@ -222,7 +229,8 @@ public class RecipeBook_1_12<C extends Inventory> {
 
         Iterator<Integer> inputItemItr = inputItemIds.iterator();
 
-        // :thonkjang: probably meant to swap craftingWidth and craftingHeight here, but oh well because width = height
+        // :thonkjang: probably meant to swap craftingWidth and craftingHeight here, but
+        // oh well because width = height
         for (int y = 0; y < screenHandler.getCraftingWidth() && y != height; y++) {
             for (int x = 0; x < screenHandler.getCraftingHeight(); x++) {
                 if (x == width || !inputItemItr.hasNext()) {
@@ -250,7 +258,8 @@ public class RecipeBook_1_12<C extends Inventory> {
         }
     }
 
-    private PlaceRecipeC2SPacket_1_12.Transaction findAndMoveToCraftMatrix(int destSlotIndex, Slot destSlot, ItemStack stackNeeded) {
+    private PlaceRecipeC2SPacket_1_12.Transaction findAndMoveToCraftMatrix(int destSlotIndex, Slot destSlot,
+            ItemStack stackNeeded) {
         assert mc.player != null;
 
         PlayerInventory playerInv = mc.player.getInventory();
@@ -281,7 +290,8 @@ public class RecipeBook_1_12<C extends Inventory> {
                     destSlot.getStack().increment(1);
                 }
 
-                return new PlaceRecipeC2SPacket_1_12.Transaction(originalStack, stack, placedOn, destSlotIndex, fromSlot);
+                return new PlaceRecipeC2SPacket_1_12.Transaction(originalStack, stack, placedOn, destSlotIndex,
+                        fromSlot);
             }
         }
     }
@@ -292,7 +302,8 @@ public class RecipeBook_1_12<C extends Inventory> {
         PlayerInventory invPlayer = mc.player.getInventory();
 
         for (int i = 0; i < screenHandler.getCraftingSlotCount(); ++i) {
-            if (!isPartOfCraftMatrix(i)) continue;
+            if (!isPartOfCraftMatrix(i))
+                continue;
 
             ItemStack stack = screenHandler.getSlot(i).getStack();
 
@@ -329,12 +340,9 @@ public class RecipeBook_1_12<C extends Inventory> {
     }
 
     private boolean canStackAddMore(ItemStack existingStack, ItemStack stack) {
-        return !existingStack.isEmpty()
-                && existingStack.getItem() == stack.getItem()
-                && ItemStack.areNbtEqual(existingStack, stack)
-                && existingStack.isStackable()
-                && existingStack.getCount() < existingStack.getMaxCount()
-                && existingStack.getCount() < 64;
+        return !existingStack.isEmpty() && existingStack.getItem() == stack.getItem()
+                && ItemStack.areNbtEqual(existingStack, stack) && existingStack.isStackable()
+                && existingStack.getCount() < existingStack.getMaxCount() && existingStack.getCount() < 64;
     }
 
     private boolean isPartOfCraftMatrix(int slotId) {

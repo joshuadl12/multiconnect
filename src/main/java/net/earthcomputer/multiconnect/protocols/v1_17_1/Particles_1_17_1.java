@@ -22,11 +22,14 @@ public class Particles_1_17_1 {
         Utils.insertAfter(registry, BARRIER, LIGHT, "light");
 
         if (!DebugUtils.UNIT_TEST_MODE) {
-            IParticleManager particleManager = (IParticleManager) MinecraftClient.getInstance().particleManager;
-            particleManager.multiconnect_registerFactory(BARRIER, (p, w, x, y, z, vx, vy, vz) ->
-                    BlockMarkerParticleAccessor.createBlockMarkerParticle(w, x, y, z, Blocks.BARRIER.getDefaultState()));
-            particleManager.multiconnect_registerFactory(LIGHT, (p, w, x, y, z, vx, vy, vz) ->
-                    BlockMarkerParticleAccessor.createBlockMarkerParticle(w, x, y, z, Blocks.LIGHT.getDefaultState()));
+            MinecraftClient client = MinecraftClient.getInstance();
+            IParticleManager particleManager = (IParticleManager) client.particleManager;
+            particleManager.multiconnect_registerFactory(BARRIER,
+                    (p, w, x, y, z, vx, vy, vz) -> BlockMarkerParticleAccessor.createBlockMarkerParticle(w, x, y, z,
+                            Blocks.BARRIER.getDefaultState()));
+            particleManager.multiconnect_registerFactory(LIGHT,
+                    (p, w, x, y, z, vx, vy, vz) -> BlockMarkerParticleAccessor.createBlockMarkerParticle(w, x, y, z,
+                            Blocks.LIGHT.getDefaultState()));
         }
     }
 }

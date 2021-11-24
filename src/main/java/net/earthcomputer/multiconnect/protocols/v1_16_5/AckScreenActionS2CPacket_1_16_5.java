@@ -29,9 +29,10 @@ public class AckScreenActionS2CPacket_1_16_5 implements Packet<ClientPlayPacketL
 
     @Override
     public void apply(ClientPlayPacketListener listener) {
-        NetworkThreadUtils.forceMainThread(this, listener, MinecraftClient.getInstance());
+        MinecraftClient client = MinecraftClient.getInstance();
+        NetworkThreadUtils.forceMainThread(this, listener, client);
 
-        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        ClientPlayerEntity player = client.player;
         if (player != null) {
             ScreenHandler screenHandler = null;
             if (syncId == 0) {

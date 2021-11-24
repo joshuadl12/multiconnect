@@ -141,16 +141,25 @@ import java.util.function.Supplier;
 
 public class Protocol_1_13_2 extends Protocol_1_14 {
 
+    private final static MinecraftClient client = MinecraftClient.getInstance();
+
     public static final Identifier CUSTOM_PAYLOAD_TRADE_LIST = new Identifier("trader_list");
     public static final Identifier CUSTOM_PAYLOAD_OPEN_BOOK = new Identifier("open_book");
 
-    public static final TrackedData<Integer> OLD_FIREWORK_SHOOTER = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
-    public static final TrackedData<Integer> OLD_VILLAGER_PROFESSION = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
-    public static final TrackedData<Byte> OLD_ILLAGER_FLAGS = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.BYTE);
-    public static final TrackedData<Boolean> OLD_SKELETON_ATTACKING = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.BOOLEAN);
-    private static final TrackedData<Boolean> OLD_ZOMBIE_ATTACKING = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.BOOLEAN);
-    public static final TrackedData<Integer> OLD_ZOMBIE_VILLAGER_PROFESSION = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
-    public static final TrackedData<Integer> OLD_HORSE_ARMOR = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Integer> OLD_FIREWORK_SHOOTER = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Integer> OLD_VILLAGER_PROFESSION = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Byte> OLD_ILLAGER_FLAGS = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.BYTE);
+    public static final TrackedData<Boolean> OLD_SKELETON_ATTACKING = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Boolean> OLD_ZOMBIE_ATTACKING = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.BOOLEAN);
+    public static final TrackedData<Integer> OLD_ZOMBIE_VILLAGER_PROFESSION = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Integer> OLD_HORSE_ARMOR = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
 
     private static SimpleRegistry<EntityType<?>> ENTITY_REGISTRY_1_13;
 
@@ -161,21 +170,26 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
     @Override
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
-        insertAfter(packets, CloseScreenS2CPacket.class, PacketInfo.of(GuiOpenS2CPacket_1_13_2.class, GuiOpenS2CPacket_1_13_2::new));
+        insertAfter(packets, CloseScreenS2CPacket.class,
+                PacketInfo.of(GuiOpenS2CPacket_1_13_2.class, GuiOpenS2CPacket_1_13_2::new));
         remove(packets, NbtQueryResponseS2CPacket.class);
-        insertAfter(packets, EntityStatusS2CPacket.class, PacketInfo.of(NbtQueryResponseS2CPacket.class, NbtQueryResponseS2CPacket::new));
+        insertAfter(packets, EntityStatusS2CPacket.class,
+                PacketInfo.of(NbtQueryResponseS2CPacket.class, NbtQueryResponseS2CPacket::new));
         remove(packets, OpenHorseScreenS2CPacket.class);
         remove(packets, LightUpdateS2CPacket.class);
         remove(packets, EntityS2CPacket_1_16_5.class);
-        insertAfter(packets, SetTradeOffersS2CPacket.class, PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
+        insertAfter(packets, SetTradeOffersS2CPacket.class,
+                PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
         remove(packets, SetTradeOffersS2CPacket.class);
         remove(packets, OpenWrittenBookS2CPacket.class);
         remove(packets, OpenScreenS2CPacket.class);
-        insertAfter(packets, PlayerPositionLookS2CPacket.class, PacketInfo.of(UseBedS2CPacket.class, UseBedS2CPacket::new));
+        insertAfter(packets, PlayerPositionLookS2CPacket.class,
+                PacketInfo.of(UseBedS2CPacket.class, UseBedS2CPacket::new));
         remove(packets, ChunkRenderDistanceCenterS2CPacket.class);
         remove(packets, ChunkLoadDistanceS2CPacket.class);
         remove(packets, StopSoundS2CPacket.class);
-        insertAfter(packets, PlaySoundFromEntityS2CPacket.class, PacketInfo.of(StopSoundS2CPacket.class, StopSoundS2CPacket::new));
+        insertAfter(packets, PlaySoundFromEntityS2CPacket.class,
+                PacketInfo.of(StopSoundS2CPacket.class, StopSoundS2CPacket::new));
         remove(packets, PlaySoundFromEntityS2CPacket.class);
         return packets;
     }
@@ -185,7 +199,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         List<PacketInfo<?>> packets = super.getServerboundPackets();
         remove(packets, UpdateDifficultyC2SPacket.class);
         remove(packets, PlayerMoveC2SPacket.OnGroundOnly.class);
-        insertAfter(packets, UpdateDifficultyLockC2SPacket.class, PacketInfo.of(PlayerMoveC2SPacket.OnGroundOnly.class, PlayerMoveC2SPacket.OnGroundOnly::read));
+        insertAfter(packets, UpdateDifficultyLockC2SPacket.class,
+                PacketInfo.of(PlayerMoveC2SPacket.OnGroundOnly.class, PlayerMoveC2SPacket.OnGroundOnly::read));
         remove(packets, UpdateDifficultyLockC2SPacket.class);
         remove(packets, UpdateJigsawC2SPacket.class);
         return packets;
@@ -195,10 +210,11 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         ProtocolRegistry.registerInboundTranslator(ChunkData.class, buf -> {
             byte[][] blockLight = new byte[16][];
             byte[][] skyLight = new byte[16][];
-            BitSet verticalStripBitmask = ChunkDataTranslator.current().getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
+            BitSet verticalStripBitmask = ChunkDataTranslator.current()
+                    .getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
             for (int sectionY = 0; sectionY < 16; sectionY++) {
                 if (verticalStripBitmask.get(sectionY)) {
-                    buf.pendingRead(Short.class, (short)0);
+                    buf.pendingRead(Short.class, (short) 0);
                     buf.enablePassthroughMode();
                     Protocol_1_15_2.skipPalettedContainer(buf);
                     buf.disablePassthroughMode();
@@ -258,7 +274,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
             buf.readInt(); // attached id
             buf.disablePassthroughMode();
             int holdingId = buf.readInt();
-            if (holdingId == -1) holdingId = 0;
+            if (holdingId == -1)
+                holdingId = 0;
             buf.pendingRead(Integer.class, holdingId);
             buf.applyPendingReads();
         });
@@ -340,7 +357,7 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
             int x = (int) (val >> 38);
             int y = (int) (val << 26 >> 52);
             int z = (int) (val << 38 >> 38);
-            val = ((long)(x & 0x3FFFFFF) << 38) | ((long)(z & 0x3FFFFFF) << 12) | (long)(y & 0xFFF);
+            val = ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (long) (y & 0xFFF);
             buf.pendingRead(Long.class, val);
             buf.applyPendingReads();
         });
@@ -377,9 +394,12 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
             buf.pendingWrite(BlockPos.class, () -> hitResult.get().getBlockPos(), buf::writeBlockPos);
             buf.pendingWrite(Direction.class, () -> hitResult.get().getSide(), buf::writeEnumConstant);
             buf.pendingWrite(Hand.class, hand, buf::writeEnumConstant);
-            buf.pendingWrite(Float.class, () -> (float) (hitResult.get().getPos().x - hitResult.get().getBlockPos().getX()), buf::writeFloat);
-            buf.pendingWrite(Float.class, () -> (float) (hitResult.get().getPos().y - hitResult.get().getBlockPos().getY()), buf::writeFloat);
-            buf.pendingWrite(Float.class, () -> (float) (hitResult.get().getPos().z - hitResult.get().getBlockPos().getZ()), buf::writeFloat);
+            buf.pendingWrite(Float.class,
+                    () -> (float) (hitResult.get().getPos().x - hitResult.get().getBlockPos().getX()), buf::writeFloat);
+            buf.pendingWrite(Float.class,
+                    () -> (float) (hitResult.get().getPos().y - hitResult.get().getBlockPos().getY()), buf::writeFloat);
+            buf.pendingWrite(Float.class,
+                    () -> (float) (hitResult.get().getPos().z - hitResult.get().getBlockPos().getZ()), buf::writeFloat);
         });
 
         ProtocolRegistry.registerOutboundTranslator(RecipeBookDataC2SPacket_1_16_1.class, buf -> {
@@ -404,7 +424,7 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
                 int x = (int) (val.get() >> 38);
                 int y = (int) (val.get() << 52 >> 52);
                 int z = (int) (val.get() << 26 >> 38);
-                return ((long)(x & 0x3FFFFFF) << 38) | ((long)(y & 0xFFF) << 26) | (long)(z & 0x3FFFFFF);
+                return ((long) (x & 0x3FFFFFF) << 38) | ((long) (y & 0xFFF) << 26) | (long) (z & 0x3FFFFFF);
             }, buf::writeLong);
         });
 
@@ -423,12 +443,15 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
                             stack = stack.copy();
                             assert stack.getNbt() != null;
                             display = stack.getNbt().getCompound("display");
-                            NbtList lore = display.contains("multiconnect:1.13.2/oldLore", 9) ? display.getList("multiconnect:1.13.2/oldLore", 8) : display.getList("Lore", 8);
+                            NbtList lore = display.contains("multiconnect:1.13.2/oldLore", 9)
+                                    ? display.getList("multiconnect:1.13.2/oldLore", 8)
+                                    : display.getList("Lore", 8);
                             NbtList newLore = new NbtList();
                             for (int i = 0; i < lore.size(); i++) {
                                 try {
                                     Text text = Text.Serializer.fromJson(lore.getString(i));
-                                    if (text == null) throw new JsonParseException("text null");
+                                    if (text == null)
+                                        throw new JsonParseException("text null");
                                     newLore.add(NbtString.of(text.asString()));
                                 } catch (JsonParseException e) {
                                     newLore.add(lore.get(i));
@@ -453,31 +476,34 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         byte[][] blockLight = data.multiconnect_getUserData(BLOCK_LIGHT_KEY);
         byte[][] skyLight = data.multiconnect_getUserData(SKY_LIGHT_KEY);
 
-        LightUpdateS2CPacket lightUpdatePacket = Utils.createPacket(LightUpdateS2CPacket.class, LightUpdateS2CPacket::new, Protocols.V1_14, buf -> {
-            buf.pendingRead(VarInt.class, new VarInt(packet.getX()));
-            buf.pendingRead(VarInt.class, new VarInt(packet.getZ()));
-            int blockLightMask = bitSetToInt(data.multiconnect_getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK)) << 1;
-            buf.pendingRead(VarInt.class, new VarInt(translator.getDimension().hasSkyLight() ? blockLightMask : 0)); // sky light mask
-            buf.pendingRead(VarInt.class, new VarInt(blockLightMask)); // block light mask
-            buf.pendingRead(VarInt.class, new VarInt(0)); // filled sky light mask
-            buf.pendingRead(VarInt.class, new VarInt(0)); // filled block light mask
-            if (translator.getDimension().hasSkyLight()) {
-                for (int i = 0; i < 16; i++) {
-                    byte[] skyData = skyLight[i];
-                    if (skyData != null) {
-                        buf.pendingRead(byte[].class, skyData);
+        LightUpdateS2CPacket lightUpdatePacket = Utils.createPacket(LightUpdateS2CPacket.class,
+                LightUpdateS2CPacket::new, Protocols.V1_14, buf -> {
+                    buf.pendingRead(VarInt.class, new VarInt(packet.getX()));
+                    buf.pendingRead(VarInt.class, new VarInt(packet.getZ()));
+                    int blockLightMask = bitSetToInt(
+                            data.multiconnect_getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK)) << 1;
+                    buf.pendingRead(VarInt.class,
+                            new VarInt(translator.getDimension().hasSkyLight() ? blockLightMask : 0)); // sky light mask
+                    buf.pendingRead(VarInt.class, new VarInt(blockLightMask)); // block light mask
+                    buf.pendingRead(VarInt.class, new VarInt(0)); // filled sky light mask
+                    buf.pendingRead(VarInt.class, new VarInt(0)); // filled block light mask
+                    if (translator.getDimension().hasSkyLight()) {
+                        for (int i = 0; i < 16; i++) {
+                            byte[] skyData = skyLight[i];
+                            if (skyData != null) {
+                                buf.pendingRead(byte[].class, skyData);
+                            }
+                        }
                     }
-                }
-            }
-            for (int i = 0; i < 16; i++) {
-                byte[] blockData = blockLight[i];
-                if (blockData != null) {
-                    buf.pendingRead(byte[].class, blockData);
-                }
-            }
+                    for (int i = 0; i < 16; i++) {
+                        byte[] blockData = blockLight[i];
+                        if (blockData != null) {
+                            buf.pendingRead(byte[].class, blockData);
+                        }
+                    }
 
-            buf.applyPendingReads();
-        });
+                    buf.applyPendingReads();
+                });
 
         translator.getPostPackets().add(lightUpdatePacket);
 
@@ -545,7 +571,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
     @Override
     public void preAcceptEntityData(Class<? extends Entity> clazz, TrackedData<?> data) {
         if (clazz == ZombieEntity.class && data == ZombieEntityAccessor.getConvertingInWater()) {
-            DataTrackerManager.registerOldTrackedData(ZombieEntity.class, OLD_ZOMBIE_ATTACKING, false, MobEntity::setAttacking);
+            DataTrackerManager.registerOldTrackedData(ZombieEntity.class, OLD_ZOMBIE_ATTACKING, false,
+                    MobEntity::setAttacking);
         }
         super.preAcceptEntityData(clazz, data);
     }
@@ -560,7 +587,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
             TrackedData<OptionalInt> fireworkShooter = FireworkEntityAccessor.getShooter();
             if (data == fireworkShooter) {
                 DataTrackerManager.registerOldTrackedData(FireworkRocketEntity.class, OLD_FIREWORK_SHOOTER, 0,
-                        (entity, val) -> entity.getDataTracker().set(fireworkShooter, val <= 0 ? OptionalInt.empty() : OptionalInt.of(val)));
+                        (entity, val) -> entity.getDataTracker().set(fireworkShooter,
+                                val <= 0 ? OptionalInt.empty() : OptionalInt.of(val)));
                 return false;
             }
             if (data == FireworkEntityAccessor.getShotAtAngle())
@@ -572,7 +600,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
             TrackedData<VillagerData> villagerData = VillagerEntityAccessor.getVillagerData();
             if (data == villagerData) {
                 DataTrackerManager.registerOldTrackedData(VillagerEntity.class, OLD_VILLAGER_PROFESSION, 0,
-                        (entity, val) -> entity.getDataTracker().set(villagerData, entity.getVillagerData().withProfession(getVillagerProfession(val))));
+                        (entity, val) -> entity.getDataTracker().set(villagerData,
+                                entity.getVillagerData().withProfession(getVillagerProfession(val))));
                 return false;
             }
         }
@@ -580,16 +609,16 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
             TrackedData<VillagerData> villagerData = ZombieVillagerEntityAccessor.getVillagerData();
             if (data == villagerData) {
                 DataTrackerManager.registerOldTrackedData(ZombieVillagerEntity.class, OLD_ZOMBIE_VILLAGER_PROFESSION, 0,
-                        (entity, val) -> entity.getDataTracker().set(villagerData, entity.getVillagerData().withProfession(getVillagerProfession(val))));
+                        (entity, val) -> entity.getDataTracker().set(villagerData,
+                                entity.getVillagerData().withProfession(getVillagerProfession(val))));
                 return false;
             }
         }
         if (clazz == MooshroomEntity.class && data == MooshroomEntityAccessor.getType())
             return false;
         if (clazz == CatEntity.class) {
-            if (data == CatEntityAccessor.getInSleepingPose()
-                || data == CatEntityAccessor.getHeadDown()
-                || data == CatEntityAccessor.getCollarColor())
+            if (data == CatEntityAccessor.getInSleepingPose() || data == CatEntityAccessor.getHeadDown()
+                    || data == CatEntityAccessor.getCollarColor())
                 return false;
         }
         if (clazz == PersistentProjectileEntity.class && data == ProjectileEntityAccessor.getPierceLevel())
@@ -600,17 +629,18 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
     @Override
     public void postEntityDataRegister(Class<? extends Entity> clazz) {
         if (clazz == IllagerEntity.class)
-            DataTrackerManager.registerOldTrackedData(IllagerEntity.class, OLD_ILLAGER_FLAGS, (byte)0,
+            DataTrackerManager.registerOldTrackedData(IllagerEntity.class, OLD_ILLAGER_FLAGS, (byte) 0,
                     (entity, val) -> entity.setAttacking((val & 1) != 0));
         if (clazz == AbstractSkeletonEntity.class)
-            DataTrackerManager.registerOldTrackedData(AbstractSkeletonEntity.class, OLD_SKELETON_ATTACKING, false, MobEntity::setAttacking);
+            DataTrackerManager.registerOldTrackedData(AbstractSkeletonEntity.class, OLD_SKELETON_ATTACKING, false,
+                    MobEntity::setAttacking);
         if (clazz == HorseEntity.class)
             DataTrackerManager.registerOldTrackedData(HorseEntity.class, OLD_HORSE_ARMOR, 0, (entity, val) -> {
                 switch (val) {
-                    case 1 -> entity.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.IRON_HORSE_ARMOR));
-                    case 2 -> entity.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.GOLDEN_HORSE_ARMOR));
-                    case 3 -> entity.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_HORSE_ARMOR));
-                    default -> entity.equipStack(EquipmentSlot.CHEST, ItemStack.EMPTY);
+                case 1 -> entity.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.IRON_HORSE_ARMOR));
+                case 2 -> entity.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.GOLDEN_HORSE_ARMOR));
+                case 3 -> entity.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_HORSE_ARMOR));
+                default -> entity.equipStack(EquipmentSlot.CHEST, ItemStack.EMPTY);
                 }
             });
         super.postEntityDataRegister(clazz);
@@ -618,54 +648,54 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
 
     private static EntityType<?> mapObjectId(int id, int entityData) {
         return switch (id) {
-            case 10 -> switch (entityData) {
-                case 1 -> EntityType.CHEST_MINECART;
-                case 2 -> EntityType.FURNACE_MINECART;
-                case 3 -> EntityType.TNT_MINECART;
-                case 4 -> EntityType.SPAWNER_MINECART;
-                case 5 -> EntityType.HOPPER_MINECART;
-                case 6 -> EntityType.COMMAND_BLOCK_MINECART;
-                default -> EntityType.MINECART;
+        case 10 -> switch (entityData) {
+            case 1 -> EntityType.CHEST_MINECART;
+            case 2 -> EntityType.FURNACE_MINECART;
+            case 3 -> EntityType.TNT_MINECART;
+            case 4 -> EntityType.SPAWNER_MINECART;
+            case 5 -> EntityType.HOPPER_MINECART;
+            case 6 -> EntityType.COMMAND_BLOCK_MINECART;
+            default -> EntityType.MINECART;
             };
-            case 90 -> EntityType.FISHING_BOBBER;
-            case 60 -> EntityType.ARROW;
-            case 91 -> EntityType.SPECTRAL_ARROW;
-            case 94 -> EntityType.TRIDENT;
-            case 61 -> EntityType.SNOWBALL;
-            case 68 -> EntityType.LLAMA_SPIT;
-            case 71 -> EntityType.ITEM_FRAME;
-            case 77 -> EntityType.LEASH_KNOT;
-            case 65 -> EntityType.ENDER_PEARL;
-            case 72 -> EntityType.EYE_OF_ENDER;
-            case 76 -> EntityType.FIREWORK_ROCKET;
-            case 63 -> EntityType.FIREBALL;
-            case 93 -> EntityType.DRAGON_FIREBALL;
-            case 64 -> EntityType.SMALL_FIREBALL;
-            case 66 -> EntityType.WITHER_SKULL;
-            case 67 -> EntityType.SHULKER_BULLET;
-            case 62 -> EntityType.EGG;
-            case 79 -> EntityType.EVOKER_FANGS;
-            case 73 -> EntityType.POTION;
-            case 75 -> EntityType.EXPERIENCE_BOTTLE;
-            case 1 -> EntityType.BOAT;
-            case 50 -> EntityType.TNT;
-            case 78 -> EntityType.ARMOR_STAND;
-            case 51 -> EntityType.END_CRYSTAL;
-            case 2 -> EntityType.ITEM;
-            case 70 -> EntityType.FALLING_BLOCK;
-            case 3 -> EntityType.AREA_EFFECT_CLOUD;
-            default -> ENTITY_REGISTRY_1_13.get(id);
+        case 90 -> EntityType.FISHING_BOBBER;
+        case 60 -> EntityType.ARROW;
+        case 91 -> EntityType.SPECTRAL_ARROW;
+        case 94 -> EntityType.TRIDENT;
+        case 61 -> EntityType.SNOWBALL;
+        case 68 -> EntityType.LLAMA_SPIT;
+        case 71 -> EntityType.ITEM_FRAME;
+        case 77 -> EntityType.LEASH_KNOT;
+        case 65 -> EntityType.ENDER_PEARL;
+        case 72 -> EntityType.EYE_OF_ENDER;
+        case 76 -> EntityType.FIREWORK_ROCKET;
+        case 63 -> EntityType.FIREBALL;
+        case 93 -> EntityType.DRAGON_FIREBALL;
+        case 64 -> EntityType.SMALL_FIREBALL;
+        case 66 -> EntityType.WITHER_SKULL;
+        case 67 -> EntityType.SHULKER_BULLET;
+        case 62 -> EntityType.EGG;
+        case 79 -> EntityType.EVOKER_FANGS;
+        case 73 -> EntityType.POTION;
+        case 75 -> EntityType.EXPERIENCE_BOTTLE;
+        case 1 -> EntityType.BOAT;
+        case 50 -> EntityType.TNT;
+        case 78 -> EntityType.ARMOR_STAND;
+        case 51 -> EntityType.END_CRYSTAL;
+        case 2 -> EntityType.ITEM;
+        case 70 -> EntityType.FALLING_BLOCK;
+        case 3 -> EntityType.AREA_EFFECT_CLOUD;
+        default -> ENTITY_REGISTRY_1_13.get(id);
         };
     }
 
     private static VillagerProfession getVillagerProfession(int id) {
         return switch (id) {
-            case 0 -> VillagerProfession.FARMER;
-            case 1 -> VillagerProfession.LIBRARIAN;
-            case 2 -> VillagerProfession.CLERIC;
-            case 3 -> VillagerProfession.ARMORER;
-            case 4 -> VillagerProfession.BUTCHER;
-            default -> VillagerProfession.NITWIT;
+        case 0 -> VillagerProfession.FARMER;
+        case 1 -> VillagerProfession.LIBRARIAN;
+        case 2 -> VillagerProfession.CLERIC;
+        case 3 -> VillagerProfession.ARMORER;
+        case 4 -> VillagerProfession.BUTCHER;
+        default -> VillagerProfession.NITWIT;
         };
     }
 
@@ -910,7 +940,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         registry.unregister(RecipeSerializer.SMOKING);
         registry.unregister(RecipeSerializer.CAMPFIRE_COOKING);
         registry.unregister(RecipeSerializer.STONECUTTING);
-        var bannerAddPatternKey = RegistryKey.of(registry.getRegistryKey(), new Identifier("crafting_special_banneraddpattern"));
+        var bannerAddPatternKey = RegistryKey.of(registry.getRegistryKey(),
+                new Identifier("crafting_special_banneraddpattern"));
         registry.register(AddBannerPatternRecipe.SERIALIZER, registry.getNextId(), bannerAddPatternKey);
     }
 
@@ -1275,46 +1306,78 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         registry.unregister(SoundEvents.ENTITY_ZOMBIE_VILLAGER_STEP);
 
         insertAfter(registry, SoundEvents.BLOCK_ANVIL_USE, SoundEvents.BLOCK_BEACON_ACTIVATE, "block.beacon.activate");
-        insertAfter(registry, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundEvents.BLOCK_BEACON_AMBIENT, "block.beacon.ambient");
-        insertAfter(registry, SoundEvents.BLOCK_BEACON_AMBIENT, SoundEvents.BLOCK_BEACON_DEACTIVATE, "block.beacon.deactivate");
-        insertAfter(registry, SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundEvents.BLOCK_BEACON_POWER_SELECT, "block.beacon.power_select");
-        insertAfter(registry, SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundEvents.BLOCK_BREWING_STAND_BREW, "block.brewing_stand.brew");
-        insertAfter(registry, SoundEvents.BLOCK_BREWING_STAND_BREW, SoundEvents.BLOCK_BUBBLE_COLUMN_BUBBLE_POP, "block.bubble_column.bubble_pop");
-        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_BUBBLE_POP, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, "block.bubble_column.upwards_ambient");
-        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, "block.bubble_column.upwards_inside");
-        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, "block.bubble_column.whirlpool_ambient");
-        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, "block.bubble_column.whirlpool_inside");
-        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundEvents.BLOCK_CHEST_CLOSE, "block.chest.close");
+        insertAfter(registry, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundEvents.BLOCK_BEACON_AMBIENT,
+                "block.beacon.ambient");
+        insertAfter(registry, SoundEvents.BLOCK_BEACON_AMBIENT, SoundEvents.BLOCK_BEACON_DEACTIVATE,
+                "block.beacon.deactivate");
+        insertAfter(registry, SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundEvents.BLOCK_BEACON_POWER_SELECT,
+                "block.beacon.power_select");
+        insertAfter(registry, SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundEvents.BLOCK_BREWING_STAND_BREW,
+                "block.brewing_stand.brew");
+        insertAfter(registry, SoundEvents.BLOCK_BREWING_STAND_BREW, SoundEvents.BLOCK_BUBBLE_COLUMN_BUBBLE_POP,
+                "block.bubble_column.bubble_pop");
+        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_BUBBLE_POP,
+                SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, "block.bubble_column.upwards_ambient");
+        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT,
+                SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, "block.bubble_column.upwards_inside");
+        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE,
+                SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, "block.bubble_column.whirlpool_ambient");
+        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_AMBIENT,
+                SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, "block.bubble_column.whirlpool_inside");
+        insertAfter(registry, SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundEvents.BLOCK_CHEST_CLOSE,
+                "block.chest.close");
         insertAfter(registry, SoundEvents.BLOCK_CHEST_CLOSE, SoundEvents.BLOCK_CHEST_LOCKED, "block.chest.locked");
         insertAfter(registry, SoundEvents.BLOCK_CHEST_LOCKED, SoundEvents.BLOCK_CHEST_OPEN, "block.chest.open");
-        insertAfter(registry, SoundEvents.BLOCK_CHEST_OPEN, SoundEvents.BLOCK_CHORUS_FLOWER_DEATH, "block.chorus_flower.death");
-        insertAfter(registry, SoundEvents.BLOCK_CHORUS_FLOWER_DEATH, SoundEvents.BLOCK_CHORUS_FLOWER_GROW, "block.chorus_flower.grow");
+        insertAfter(registry, SoundEvents.BLOCK_CHEST_OPEN, SoundEvents.BLOCK_CHORUS_FLOWER_DEATH,
+                "block.chorus_flower.death");
+        insertAfter(registry, SoundEvents.BLOCK_CHORUS_FLOWER_DEATH, SoundEvents.BLOCK_CHORUS_FLOWER_GROW,
+                "block.chorus_flower.grow");
         insertAfter(registry, SoundEvents.BLOCK_CHORUS_FLOWER_GROW, SoundEvents.BLOCK_WOOL_BREAK, "block.wool.break");
         insertAfter(registry, SoundEvents.BLOCK_WOOL_BREAK, SoundEvents.BLOCK_WOOL_FALL, "block.wool.fall");
         insertAfter(registry, SoundEvents.BLOCK_WOOL_FALL, SoundEvents.BLOCK_WOOL_HIT, "block.wool.hit");
         insertAfter(registry, SoundEvents.BLOCK_WOOL_HIT, SoundEvents.BLOCK_WOOL_PLACE, "block.wool.place");
         insertAfter(registry, SoundEvents.BLOCK_WOOL_PLACE, SoundEvents.BLOCK_WOOL_STEP, "block.wool.step");
-        insertAfter(registry, SoundEvents.BLOCK_WOOL_STEP, SoundEvents.BLOCK_COMPARATOR_CLICK, "block.comparator.click");
-        insertAfter(registry, SoundEvents.BLOCK_COMPARATOR_CLICK, SoundEvents.BLOCK_CONDUIT_ACTIVATE, "block.conduit.activate");
-        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_ACTIVATE, SoundEvents.BLOCK_CONDUIT_AMBIENT, "block.conduit.ambient");
-        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_AMBIENT, SoundEvents.BLOCK_CONDUIT_AMBIENT_SHORT, "block.conduit.ambient.short");
-        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_AMBIENT_SHORT, SoundEvents.BLOCK_CONDUIT_ATTACK_TARGET, "block.conduit.attack.target");
-        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_ATTACK_TARGET, SoundEvents.BLOCK_CONDUIT_DEACTIVATE, "block.conduit.deactivate");
-        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_DEACTIVATE, SoundEvents.BLOCK_DISPENSER_DISPENSE, "block.dispenser.dispense");
-        insertAfter(registry, SoundEvents.BLOCK_DISPENSER_DISPENSE, SoundEvents.BLOCK_DISPENSER_FAIL, "block.dispenser.fail");
-        insertAfter(registry, SoundEvents.BLOCK_DISPENSER_FAIL, SoundEvents.BLOCK_DISPENSER_LAUNCH, "block.dispenser.launch");
-        insertAfter(registry, SoundEvents.BLOCK_DISPENSER_LAUNCH, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, "block.enchantment_table.use");
-        insertAfter(registry, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundEvents.BLOCK_END_GATEWAY_SPAWN, "block.end_gateway.spawn");
-        insertAfter(registry, SoundEvents.BLOCK_END_GATEWAY_SPAWN, SoundEvents.BLOCK_END_PORTAL_SPAWN, "block.end_portal.spawn");
-        insertAfter(registry, SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, "block.end_portal_frame.fill");
-        insertAfter(registry, SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, SoundEvents.BLOCK_ENDER_CHEST_CLOSE, "block.ender_chest.close");
-        insertAfter(registry, SoundEvents.BLOCK_ENDER_CHEST_CLOSE, SoundEvents.BLOCK_ENDER_CHEST_OPEN, "block.ender_chest.open");
-        insertAfter(registry, SoundEvents.BLOCK_ENDER_CHEST_OPEN, SoundEvents.BLOCK_FENCE_GATE_CLOSE, "block.fence_gate.close");
-        insertAfter(registry, SoundEvents.BLOCK_FENCE_GATE_CLOSE, SoundEvents.BLOCK_FENCE_GATE_OPEN, "block.fence_gate.open");
+        insertAfter(registry, SoundEvents.BLOCK_WOOL_STEP, SoundEvents.BLOCK_COMPARATOR_CLICK,
+                "block.comparator.click");
+        insertAfter(registry, SoundEvents.BLOCK_COMPARATOR_CLICK, SoundEvents.BLOCK_CONDUIT_ACTIVATE,
+                "block.conduit.activate");
+        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_ACTIVATE, SoundEvents.BLOCK_CONDUIT_AMBIENT,
+                "block.conduit.ambient");
+        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_AMBIENT, SoundEvents.BLOCK_CONDUIT_AMBIENT_SHORT,
+                "block.conduit.ambient.short");
+        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_AMBIENT_SHORT, SoundEvents.BLOCK_CONDUIT_ATTACK_TARGET,
+                "block.conduit.attack.target");
+        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_ATTACK_TARGET, SoundEvents.BLOCK_CONDUIT_DEACTIVATE,
+                "block.conduit.deactivate");
+        insertAfter(registry, SoundEvents.BLOCK_CONDUIT_DEACTIVATE, SoundEvents.BLOCK_DISPENSER_DISPENSE,
+                "block.dispenser.dispense");
+        insertAfter(registry, SoundEvents.BLOCK_DISPENSER_DISPENSE, SoundEvents.BLOCK_DISPENSER_FAIL,
+                "block.dispenser.fail");
+        insertAfter(registry, SoundEvents.BLOCK_DISPENSER_FAIL, SoundEvents.BLOCK_DISPENSER_LAUNCH,
+                "block.dispenser.launch");
+        insertAfter(registry, SoundEvents.BLOCK_DISPENSER_LAUNCH, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE,
+                "block.enchantment_table.use");
+        insertAfter(registry, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundEvents.BLOCK_END_GATEWAY_SPAWN,
+                "block.end_gateway.spawn");
+        insertAfter(registry, SoundEvents.BLOCK_END_GATEWAY_SPAWN, SoundEvents.BLOCK_END_PORTAL_SPAWN,
+                "block.end_portal.spawn");
+        insertAfter(registry, SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundEvents.BLOCK_END_PORTAL_FRAME_FILL,
+                "block.end_portal_frame.fill");
+        insertAfter(registry, SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, SoundEvents.BLOCK_ENDER_CHEST_CLOSE,
+                "block.ender_chest.close");
+        insertAfter(registry, SoundEvents.BLOCK_ENDER_CHEST_CLOSE, SoundEvents.BLOCK_ENDER_CHEST_OPEN,
+                "block.ender_chest.open");
+        insertAfter(registry, SoundEvents.BLOCK_ENDER_CHEST_OPEN, SoundEvents.BLOCK_FENCE_GATE_CLOSE,
+                "block.fence_gate.close");
+        insertAfter(registry, SoundEvents.BLOCK_FENCE_GATE_CLOSE, SoundEvents.BLOCK_FENCE_GATE_OPEN,
+                "block.fence_gate.open");
         insertAfter(registry, SoundEvents.BLOCK_FENCE_GATE_OPEN, SoundEvents.BLOCK_FIRE_AMBIENT, "block.fire.ambient");
-        insertAfter(registry, SoundEvents.BLOCK_FIRE_AMBIENT, SoundEvents.BLOCK_FIRE_EXTINGUISH, "block.fire.extinguish");
-        insertAfter(registry, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, "block.furnace.fire_crackle");
-        insertAfter(registry, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, SoundEvents.BLOCK_GLASS_BREAK, "block.glass.break");
+        insertAfter(registry, SoundEvents.BLOCK_FIRE_AMBIENT, SoundEvents.BLOCK_FIRE_EXTINGUISH,
+                "block.fire.extinguish");
+        insertAfter(registry, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE,
+                "block.furnace.fire_crackle");
+        insertAfter(registry, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, SoundEvents.BLOCK_GLASS_BREAK,
+                "block.glass.break");
         insertAfter(registry, SoundEvents.BLOCK_GLASS_BREAK, SoundEvents.BLOCK_GLASS_FALL, "block.glass.fall");
         insertAfter(registry, SoundEvents.BLOCK_GLASS_FALL, SoundEvents.BLOCK_GLASS_HIT, "block.glass.hit");
         insertAfter(registry, SoundEvents.BLOCK_GLASS_HIT, SoundEvents.BLOCK_GLASS_PLACE, "block.glass.place");
@@ -1325,31 +1388,45 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         insertAfter(registry, SoundEvents.BLOCK_GRASS_HIT, SoundEvents.BLOCK_GRASS_PLACE, "block.grass.place");
         insertAfter(registry, SoundEvents.BLOCK_GRASS_PLACE, SoundEvents.BLOCK_GRASS_STEP, "block.grass.step");
         insertAfter(registry, SoundEvents.BLOCK_GRASS_STEP, SoundEvents.BLOCK_WET_GRASS_BREAK, "block.wet_grass.break");
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_BREAK, SoundEvents.BLOCK_WET_GRASS_FALL, "block.wet_grass.fall");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_BREAK, SoundEvents.BLOCK_WET_GRASS_FALL,
+                "block.wet_grass.fall");
         insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_FALL, SoundEvents.BLOCK_WET_GRASS_HIT, "block.wet_grass.hit");
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_HIT, SoundEvents.BLOCK_WET_GRASS_PLACE, "block.wet_grass.place");
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_PLACE, SoundEvents.BLOCK_WET_GRASS_STEP, "block.wet_grass.step");
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_STEP, SoundEvents.BLOCK_CORAL_BLOCK_BREAK, "block.coral_block.break");
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_BREAK, SoundEvents.BLOCK_CORAL_BLOCK_FALL, "block.coral_block.fall");
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_FALL, SoundEvents.BLOCK_CORAL_BLOCK_HIT, "block.coral_block.hit");
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_HIT, SoundEvents.BLOCK_CORAL_BLOCK_PLACE, "block.coral_block.place");
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_PLACE, SoundEvents.BLOCK_CORAL_BLOCK_STEP, "block.coral_block.step");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_HIT, SoundEvents.BLOCK_WET_GRASS_PLACE,
+                "block.wet_grass.place");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_PLACE, SoundEvents.BLOCK_WET_GRASS_STEP,
+                "block.wet_grass.step");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_STEP, SoundEvents.BLOCK_CORAL_BLOCK_BREAK,
+                "block.coral_block.break");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_BREAK, SoundEvents.BLOCK_CORAL_BLOCK_FALL,
+                "block.coral_block.fall");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_FALL, SoundEvents.BLOCK_CORAL_BLOCK_HIT,
+                "block.coral_block.hit");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_HIT, SoundEvents.BLOCK_CORAL_BLOCK_PLACE,
+                "block.coral_block.place");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_PLACE, SoundEvents.BLOCK_CORAL_BLOCK_STEP,
+                "block.coral_block.step");
         insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_STEP, SoundEvents.BLOCK_GRAVEL_BREAK, "block.gravel.break");
         insertAfter(registry, SoundEvents.BLOCK_GRAVEL_BREAK, SoundEvents.BLOCK_GRAVEL_FALL, "block.gravel.fall");
         insertAfter(registry, SoundEvents.BLOCK_GRAVEL_FALL, SoundEvents.BLOCK_GRAVEL_HIT, "block.gravel.hit");
         insertAfter(registry, SoundEvents.BLOCK_GRAVEL_HIT, SoundEvents.BLOCK_GRAVEL_PLACE, "block.gravel.place");
         insertAfter(registry, SoundEvents.BLOCK_GRAVEL_PLACE, SoundEvents.BLOCK_GRAVEL_STEP, "block.gravel.step");
-        insertAfter(registry, SoundEvents.BLOCK_GRAVEL_STEP, SoundEvents.BLOCK_IRON_DOOR_CLOSE, "block.iron_door.close");
-        insertAfter(registry, SoundEvents.BLOCK_IRON_DOOR_CLOSE, SoundEvents.BLOCK_IRON_DOOR_OPEN, "block.iron_door.open");
-        insertAfter(registry, SoundEvents.BLOCK_IRON_DOOR_OPEN, SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, "block.iron_trapdoor.close");
-        insertAfter(registry, SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, SoundEvents.BLOCK_IRON_TRAPDOOR_OPEN, "block.iron_trapdoor.open");
-        insertAfter(registry, SoundEvents.BLOCK_IRON_TRAPDOOR_OPEN, SoundEvents.BLOCK_LADDER_BREAK, "block.ladder.break");
+        insertAfter(registry, SoundEvents.BLOCK_GRAVEL_STEP, SoundEvents.BLOCK_IRON_DOOR_CLOSE,
+                "block.iron_door.close");
+        insertAfter(registry, SoundEvents.BLOCK_IRON_DOOR_CLOSE, SoundEvents.BLOCK_IRON_DOOR_OPEN,
+                "block.iron_door.open");
+        insertAfter(registry, SoundEvents.BLOCK_IRON_DOOR_OPEN, SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE,
+                "block.iron_trapdoor.close");
+        insertAfter(registry, SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, SoundEvents.BLOCK_IRON_TRAPDOOR_OPEN,
+                "block.iron_trapdoor.open");
+        insertAfter(registry, SoundEvents.BLOCK_IRON_TRAPDOOR_OPEN, SoundEvents.BLOCK_LADDER_BREAK,
+                "block.ladder.break");
         insertAfter(registry, SoundEvents.BLOCK_LADDER_BREAK, SoundEvents.BLOCK_LADDER_FALL, "block.ladder.fall");
         insertAfter(registry, SoundEvents.BLOCK_LADDER_FALL, SoundEvents.BLOCK_LADDER_HIT, "block.ladder.hit");
         insertAfter(registry, SoundEvents.BLOCK_LADDER_HIT, SoundEvents.BLOCK_LADDER_PLACE, "block.ladder.place");
         insertAfter(registry, SoundEvents.BLOCK_LADDER_PLACE, SoundEvents.BLOCK_LADDER_STEP, "block.ladder.step");
         insertAfter(registry, SoundEvents.BLOCK_LADDER_STEP, SoundEvents.BLOCK_LAVA_AMBIENT, "block.lava.ambient");
-        insertAfter(registry, SoundEvents.BLOCK_LAVA_AMBIENT, SoundEvents.BLOCK_LAVA_EXTINGUISH, "block.lava.extinguish");
+        insertAfter(registry, SoundEvents.BLOCK_LAVA_AMBIENT, SoundEvents.BLOCK_LAVA_EXTINGUISH,
+                "block.lava.extinguish");
         insertAfter(registry, SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundEvents.BLOCK_LAVA_POP, "block.lava.pop");
         insertAfter(registry, SoundEvents.BLOCK_LAVA_POP, SoundEvents.BLOCK_LEVER_CLICK, "block.lever.click");
         insertAfter(registry, SoundEvents.BLOCK_LEVER_CLICK, SoundEvents.BLOCK_METAL_BREAK, "block.metal.break");
@@ -1357,38 +1434,64 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         insertAfter(registry, SoundEvents.BLOCK_METAL_FALL, SoundEvents.BLOCK_METAL_HIT, "block.metal.hit");
         insertAfter(registry, SoundEvents.BLOCK_METAL_HIT, SoundEvents.BLOCK_METAL_PLACE, "block.metal.place");
         insertAfter(registry, SoundEvents.BLOCK_METAL_PLACE, SoundEvents.BLOCK_METAL_STEP, "block.metal.step");
-        insertAfter(registry, SoundEvents.BLOCK_METAL_STEP, SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_OFF, "block.metal_pressure_plate.click_off");
-        insertAfter(registry, SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_OFF, SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_ON, "block.metal_pressure_plate.click_on");
-        insertAfter(registry, SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_ON, SoundEvents.BLOCK_NOTE_BLOCK_BASEDRUM, "block.note_block.basedrum");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_BASEDRUM, SoundEvents.BLOCK_NOTE_BLOCK_BASS, "block.note_block.bass");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_BASS, SoundEvents.BLOCK_NOTE_BLOCK_BELL, "block.note_block.bell");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_BELL, SoundEvents.BLOCK_NOTE_BLOCK_CHIME, "block.note_block.chime");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_CHIME, SoundEvents.BLOCK_NOTE_BLOCK_FLUTE, "block.note_block.flute");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_FLUTE, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR, "block.note_block.guitar");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR, SoundEvents.BLOCK_NOTE_BLOCK_HARP, "block.note_block.harp");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_HARP, SoundEvents.BLOCK_NOTE_BLOCK_HAT, "block.note_block.hat");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_HAT, SoundEvents.BLOCK_NOTE_BLOCK_PLING, "block.note_block.pling");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_PLING, SoundEvents.BLOCK_NOTE_BLOCK_SNARE, "block.note_block.snare");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_SNARE, SoundEvents.BLOCK_NOTE_BLOCK_XYLOPHONE, "block.note_block.xylophone");
-        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_XYLOPHONE, SoundEvents.BLOCK_PISTON_CONTRACT, "block.piston.contract");
-        insertAfter(registry, SoundEvents.BLOCK_PISTON_CONTRACT, SoundEvents.BLOCK_PISTON_EXTEND, "block.piston.extend");
-        insertAfter(registry, SoundEvents.BLOCK_PISTON_EXTEND, SoundEvents.BLOCK_PORTAL_AMBIENT, "block.portal.ambient");
+        insertAfter(registry, SoundEvents.BLOCK_METAL_STEP, SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_OFF,
+                "block.metal_pressure_plate.click_off");
+        insertAfter(registry, SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_OFF,
+                SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_ON, "block.metal_pressure_plate.click_on");
+        insertAfter(registry, SoundEvents.BLOCK_METAL_PRESSURE_PLATE_CLICK_ON, SoundEvents.BLOCK_NOTE_BLOCK_BASEDRUM,
+                "block.note_block.basedrum");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_BASEDRUM, SoundEvents.BLOCK_NOTE_BLOCK_BASS,
+                "block.note_block.bass");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_BASS, SoundEvents.BLOCK_NOTE_BLOCK_BELL,
+                "block.note_block.bell");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_BELL, SoundEvents.BLOCK_NOTE_BLOCK_CHIME,
+                "block.note_block.chime");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_CHIME, SoundEvents.BLOCK_NOTE_BLOCK_FLUTE,
+                "block.note_block.flute");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_FLUTE, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR,
+                "block.note_block.guitar");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_GUITAR, SoundEvents.BLOCK_NOTE_BLOCK_HARP,
+                "block.note_block.harp");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_HARP, SoundEvents.BLOCK_NOTE_BLOCK_HAT,
+                "block.note_block.hat");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_HAT, SoundEvents.BLOCK_NOTE_BLOCK_PLING,
+                "block.note_block.pling");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_PLING, SoundEvents.BLOCK_NOTE_BLOCK_SNARE,
+                "block.note_block.snare");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_SNARE, SoundEvents.BLOCK_NOTE_BLOCK_XYLOPHONE,
+                "block.note_block.xylophone");
+        insertAfter(registry, SoundEvents.BLOCK_NOTE_BLOCK_XYLOPHONE, SoundEvents.BLOCK_PISTON_CONTRACT,
+                "block.piston.contract");
+        insertAfter(registry, SoundEvents.BLOCK_PISTON_CONTRACT, SoundEvents.BLOCK_PISTON_EXTEND,
+                "block.piston.extend");
+        insertAfter(registry, SoundEvents.BLOCK_PISTON_EXTEND, SoundEvents.BLOCK_PORTAL_AMBIENT,
+                "block.portal.ambient");
         insertAfter(registry, SoundEvents.BLOCK_PORTAL_AMBIENT, SoundEvents.BLOCK_PORTAL_TRAVEL, "block.portal.travel");
-        insertAfter(registry, SoundEvents.BLOCK_PORTAL_TRAVEL, SoundEvents.BLOCK_PORTAL_TRIGGER, "block.portal.trigger");
+        insertAfter(registry, SoundEvents.BLOCK_PORTAL_TRAVEL, SoundEvents.BLOCK_PORTAL_TRIGGER,
+                "block.portal.trigger");
         insertAfter(registry, SoundEvents.BLOCK_PORTAL_TRIGGER, SoundEvents.BLOCK_PUMPKIN_CARVE, "block.pumpkin.carve");
-        insertAfter(registry, SoundEvents.BLOCK_PUMPKIN_CARVE, SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT, "block.redstone_torch.burnout");
-        insertAfter(registry, SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT, SoundEvents.BLOCK_SAND_BREAK, "block.sand.break");
+        insertAfter(registry, SoundEvents.BLOCK_PUMPKIN_CARVE, SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT,
+                "block.redstone_torch.burnout");
+        insertAfter(registry, SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT, SoundEvents.BLOCK_SAND_BREAK,
+                "block.sand.break");
         insertAfter(registry, SoundEvents.BLOCK_SAND_BREAK, SoundEvents.BLOCK_SAND_FALL, "block.sand.fall");
         insertAfter(registry, SoundEvents.BLOCK_SAND_FALL, SoundEvents.BLOCK_SAND_HIT, "block.sand.hit");
         insertAfter(registry, SoundEvents.BLOCK_SAND_HIT, SoundEvents.BLOCK_SAND_PLACE, "block.sand.place");
         insertAfter(registry, SoundEvents.BLOCK_SAND_PLACE, SoundEvents.BLOCK_SAND_STEP, "block.sand.step");
-        insertAfter(registry, SoundEvents.BLOCK_SAND_STEP, SoundEvents.BLOCK_SHULKER_BOX_CLOSE, "block.shulker_box.close");
-        insertAfter(registry, SoundEvents.BLOCK_SHULKER_BOX_CLOSE, SoundEvents.BLOCK_SHULKER_BOX_OPEN, "block.shulker_box.open");
-        insertAfter(registry, SoundEvents.BLOCK_SHULKER_BOX_OPEN, SoundEvents.BLOCK_SLIME_BLOCK_BREAK, "block.slime_block.break");
-        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_BREAK, SoundEvents.BLOCK_SLIME_BLOCK_FALL, "block.slime_block.fall");
-        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_FALL, SoundEvents.BLOCK_SLIME_BLOCK_HIT, "block.slime_block.hit");
-        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_HIT, SoundEvents.BLOCK_SLIME_BLOCK_PLACE, "block.slime_block.place");
-        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_PLACE, SoundEvents.BLOCK_SLIME_BLOCK_STEP, "block.slime_block.step");
+        insertAfter(registry, SoundEvents.BLOCK_SAND_STEP, SoundEvents.BLOCK_SHULKER_BOX_CLOSE,
+                "block.shulker_box.close");
+        insertAfter(registry, SoundEvents.BLOCK_SHULKER_BOX_CLOSE, SoundEvents.BLOCK_SHULKER_BOX_OPEN,
+                "block.shulker_box.open");
+        insertAfter(registry, SoundEvents.BLOCK_SHULKER_BOX_OPEN, SoundEvents.BLOCK_SLIME_BLOCK_BREAK,
+                "block.slime_block.break");
+        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_BREAK, SoundEvents.BLOCK_SLIME_BLOCK_FALL,
+                "block.slime_block.fall");
+        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_FALL, SoundEvents.BLOCK_SLIME_BLOCK_HIT,
+                "block.slime_block.hit");
+        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_HIT, SoundEvents.BLOCK_SLIME_BLOCK_PLACE,
+                "block.slime_block.place");
+        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_PLACE, SoundEvents.BLOCK_SLIME_BLOCK_STEP,
+                "block.slime_block.step");
         insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_STEP, SoundEvents.BLOCK_SNOW_BREAK, "block.snow.break");
         insertAfter(registry, SoundEvents.BLOCK_SNOW_BREAK, SoundEvents.BLOCK_SNOW_FALL, "block.snow.fall");
         insertAfter(registry, SoundEvents.BLOCK_SNOW_FALL, SoundEvents.BLOCK_SNOW_HIT, "block.snow.hit");
@@ -1399,78 +1502,128 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         insertAfter(registry, SoundEvents.BLOCK_STONE_FALL, SoundEvents.BLOCK_STONE_HIT, "block.stone.hit");
         insertAfter(registry, SoundEvents.BLOCK_STONE_HIT, SoundEvents.BLOCK_STONE_PLACE, "block.stone.place");
         insertAfter(registry, SoundEvents.BLOCK_STONE_PLACE, SoundEvents.BLOCK_STONE_STEP, "block.stone.step");
-        insertAfter(registry, SoundEvents.BLOCK_STONE_STEP, SoundEvents.BLOCK_STONE_BUTTON_CLICK_OFF, "block.stone_button.click_off");
-        insertAfter(registry, SoundEvents.BLOCK_STONE_BUTTON_CLICK_OFF, SoundEvents.BLOCK_STONE_BUTTON_CLICK_ON, "block.stone_button.click_on");
-        insertAfter(registry, SoundEvents.BLOCK_STONE_BUTTON_CLICK_ON, SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_OFF, "block.stone_pressure_plate.click_off");
-        insertAfter(registry, SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_OFF, SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_ON, "block.stone_pressure_plate.click_on");
-        insertAfter(registry, SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_ON, SoundEvents.BLOCK_TRIPWIRE_ATTACH, "block.tripwire.attach");
-        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_ATTACH, SoundEvents.BLOCK_TRIPWIRE_CLICK_OFF, "block.tripwire.click_off");
-        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_CLICK_OFF, SoundEvents.BLOCK_TRIPWIRE_CLICK_ON, "block.tripwire.click_on");
-        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_CLICK_ON, SoundEvents.BLOCK_TRIPWIRE_DETACH, "block.tripwire.detach");
-        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_DETACH, SoundEvents.BLOCK_WATER_AMBIENT, "block.water.ambient");
-        insertAfter(registry, SoundEvents.BLOCK_WATER_AMBIENT, SoundEvents.BLOCK_LILY_PAD_PLACE, "block.lily_pad.place");
+        insertAfter(registry, SoundEvents.BLOCK_STONE_STEP, SoundEvents.BLOCK_STONE_BUTTON_CLICK_OFF,
+                "block.stone_button.click_off");
+        insertAfter(registry, SoundEvents.BLOCK_STONE_BUTTON_CLICK_OFF, SoundEvents.BLOCK_STONE_BUTTON_CLICK_ON,
+                "block.stone_button.click_on");
+        insertAfter(registry, SoundEvents.BLOCK_STONE_BUTTON_CLICK_ON, SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_OFF,
+                "block.stone_pressure_plate.click_off");
+        insertAfter(registry, SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_OFF,
+                SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_ON, "block.stone_pressure_plate.click_on");
+        insertAfter(registry, SoundEvents.BLOCK_STONE_PRESSURE_PLATE_CLICK_ON, SoundEvents.BLOCK_TRIPWIRE_ATTACH,
+                "block.tripwire.attach");
+        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_ATTACH, SoundEvents.BLOCK_TRIPWIRE_CLICK_OFF,
+                "block.tripwire.click_off");
+        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_CLICK_OFF, SoundEvents.BLOCK_TRIPWIRE_CLICK_ON,
+                "block.tripwire.click_on");
+        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_CLICK_ON, SoundEvents.BLOCK_TRIPWIRE_DETACH,
+                "block.tripwire.detach");
+        insertAfter(registry, SoundEvents.BLOCK_TRIPWIRE_DETACH, SoundEvents.BLOCK_WATER_AMBIENT,
+                "block.water.ambient");
+        insertAfter(registry, SoundEvents.BLOCK_WATER_AMBIENT, SoundEvents.BLOCK_LILY_PAD_PLACE,
+                "block.lily_pad.place");
         insertAfter(registry, SoundEvents.BLOCK_LILY_PAD_PLACE, SoundEvents.BLOCK_WOOD_BREAK, "block.wood.break");
         insertAfter(registry, SoundEvents.BLOCK_WOOD_BREAK, SoundEvents.BLOCK_WOOD_FALL, "block.wood.fall");
         insertAfter(registry, SoundEvents.BLOCK_WOOD_FALL, SoundEvents.BLOCK_WOOD_HIT, "block.wood.hit");
         insertAfter(registry, SoundEvents.BLOCK_WOOD_HIT, SoundEvents.BLOCK_WOOD_PLACE, "block.wood.place");
         insertAfter(registry, SoundEvents.BLOCK_WOOD_PLACE, SoundEvents.BLOCK_WOOD_STEP, "block.wood.step");
-        insertAfter(registry, SoundEvents.BLOCK_WOOD_STEP, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF, "block.wooden_button.click_off");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_ON, "block.wooden_button.click_on");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_ON, SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_OFF, "block.wooden_pressure_plate.click_off");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_OFF, SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_ON, "block.wooden_pressure_plate.click_on");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_ON, SoundEvents.BLOCK_WOODEN_DOOR_CLOSE, "block.wooden_door.close");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_DOOR_CLOSE, SoundEvents.BLOCK_WOODEN_DOOR_OPEN, "block.wooden_door.open");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_DOOR_OPEN, SoundEvents.BLOCK_WOODEN_TRAPDOOR_CLOSE, "block.wooden_trapdoor.close");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_TRAPDOOR_CLOSE, SoundEvents.BLOCK_WOODEN_TRAPDOOR_OPEN, "block.wooden_trapdoor.open");
-        insertAfter(registry, SoundEvents.BLOCK_WOODEN_TRAPDOOR_OPEN, SoundEvents.ENCHANT_THORNS_HIT, "enchant.thorns.hit");
-        insertAfter(registry, SoundEvents.ENTITY_ENDER_DRAGON_SHOOT, SoundEvents.ENTITY_DRAGON_FIREBALL_EXPLODE, "entity.dragon_fireball.explode");
-        insertAfter(registry, SoundEvents.ENTITY_EVOKER_PREPARE_WOLOLO, SoundEvents.ENTITY_EVOKER_FANGS_ATTACK, "entity.evoker_fangs.attack");
+        insertAfter(registry, SoundEvents.BLOCK_WOOD_STEP, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF,
+                "block.wooden_button.click_off");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_ON,
+                "block.wooden_button.click_on");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_ON,
+                SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_OFF, "block.wooden_pressure_plate.click_off");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_OFF,
+                SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_ON, "block.wooden_pressure_plate.click_on");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_PRESSURE_PLATE_CLICK_ON, SoundEvents.BLOCK_WOODEN_DOOR_CLOSE,
+                "block.wooden_door.close");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_DOOR_CLOSE, SoundEvents.BLOCK_WOODEN_DOOR_OPEN,
+                "block.wooden_door.open");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_DOOR_OPEN, SoundEvents.BLOCK_WOODEN_TRAPDOOR_CLOSE,
+                "block.wooden_trapdoor.close");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_TRAPDOOR_CLOSE, SoundEvents.BLOCK_WOODEN_TRAPDOOR_OPEN,
+                "block.wooden_trapdoor.open");
+        insertAfter(registry, SoundEvents.BLOCK_WOODEN_TRAPDOOR_OPEN, SoundEvents.ENCHANT_THORNS_HIT,
+                "enchant.thorns.hit");
+        insertAfter(registry, SoundEvents.ENTITY_ENDER_DRAGON_SHOOT, SoundEvents.ENTITY_DRAGON_FIREBALL_EXPLODE,
+                "entity.dragon_fireball.explode");
+        insertAfter(registry, SoundEvents.ENTITY_EVOKER_PREPARE_WOLOLO, SoundEvents.ENTITY_EVOKER_FANGS_ATTACK,
+                "entity.evoker_fangs.attack");
         insertAfter(registry, SoundEvents.ENTITY_IRON_GOLEM_STEP, SoundEvents.ENTITY_ITEM_BREAK, "entity.item.break");
         insertAfter(registry, SoundEvents.ENTITY_ITEM_BREAK, SoundEvents.ENTITY_ITEM_PICKUP, "entity.item.pickup");
-        insertAfter(registry, SoundEvents.ENTITY_SHULKER_TELEPORT, SoundEvents.ENTITY_SHULKER_BULLET_HIT, "entity.shulker_bullet.hit");
-        insertAfter(registry, SoundEvents.ENTITY_SHULKER_BULLET_HIT, SoundEvents.ENTITY_SHULKER_BULLET_HURT, "entity.shulker_bullet.hurt");
-        insertAfter(registry, SoundEvents.ENTITY_SKELETON_DEATH, SoundEvents.ENTITY_SKELETON_HURT, "entity.skeleton.hurt");
-        insertAfter(registry, SoundEvents.ENTITY_SKELETON_HURT, SoundEvents.ENTITY_SKELETON_SHOOT, "entity.skeleton.shoot");
-        insertAfter(registry, SoundEvents.ENTITY_SKELETON_SHOOT, SoundEvents.ENTITY_SKELETON_STEP, "entity.skeleton.step");
-        insertAfter(registry, SoundEvents.ENTITY_SNOW_GOLEM_SHOOT, SoundEvents.ENTITY_SNOWBALL_THROW, "entity.snowball.throw");
+        insertAfter(registry, SoundEvents.ENTITY_SHULKER_TELEPORT, SoundEvents.ENTITY_SHULKER_BULLET_HIT,
+                "entity.shulker_bullet.hit");
+        insertAfter(registry, SoundEvents.ENTITY_SHULKER_BULLET_HIT, SoundEvents.ENTITY_SHULKER_BULLET_HURT,
+                "entity.shulker_bullet.hurt");
+        insertAfter(registry, SoundEvents.ENTITY_SKELETON_DEATH, SoundEvents.ENTITY_SKELETON_HURT,
+                "entity.skeleton.hurt");
+        insertAfter(registry, SoundEvents.ENTITY_SKELETON_HURT, SoundEvents.ENTITY_SKELETON_SHOOT,
+                "entity.skeleton.shoot");
+        insertAfter(registry, SoundEvents.ENTITY_SKELETON_SHOOT, SoundEvents.ENTITY_SKELETON_STEP,
+                "entity.skeleton.step");
+        insertAfter(registry, SoundEvents.ENTITY_SNOW_GOLEM_SHOOT, SoundEvents.ENTITY_SNOWBALL_THROW,
+                "entity.snowball.throw");
         insertAfter(registry, SoundEvents.ENTITY_WITHER_SHOOT, SoundEvents.ENTITY_WITHER_SPAWN, "entity.wither.spawn");
-        insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_DESTROY_EGG, SoundEvents.ENTITY_ZOMBIE_HURT, "entity.zombie.hurt");
+        insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_DESTROY_EGG, SoundEvents.ENTITY_ZOMBIE_HURT,
+                "entity.zombie.hurt");
         insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_HURT, SoundEvents.ENTITY_ZOMBIE_INFECT, "entity.zombie.infect");
         insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_INFECT, SoundEvents.ENTITY_ZOMBIE_STEP, "entity.zombie.step");
-        insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_VILLAGER_HURT, SoundEvents.ENTITY_ZOMBIE_VILLAGER_STEP, "entity.zombie_villager.step");
-        insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_VILLAGER_STEP, SoundEvents.ITEM_ARMOR_EQUIP_CHAIN, "item.armor.equip_chain");
-        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_CHAIN, SoundEvents.ITEM_ARMOR_EQUIP_DIAMOND, "item.armor.equip_diamond");
-        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_DIAMOND, SoundEvents.ITEM_ARMOR_EQUIP_ELYTRA, "item.armor.equip_elytra");
-        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_ELYTRA, SoundEvents.ITEM_ARMOR_EQUIP_GENERIC, "item.armor.equip_generic");
-        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_GENERIC, SoundEvents.ITEM_ARMOR_EQUIP_GOLD, "item.armor.equip_gold");
-        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_GOLD, SoundEvents.ITEM_ARMOR_EQUIP_IRON, "item.armor.equip_iron");
-        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_IRON, SoundEvents.ITEM_ARMOR_EQUIP_LEATHER, "item.armor.equip_leather");
-        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_LEATHER, SoundEvents.ITEM_ARMOR_EQUIP_TURTLE, "item.armor.equip_turtle");
+        insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_VILLAGER_HURT, SoundEvents.ENTITY_ZOMBIE_VILLAGER_STEP,
+                "entity.zombie_villager.step");
+        insertAfter(registry, SoundEvents.ENTITY_ZOMBIE_VILLAGER_STEP, SoundEvents.ITEM_ARMOR_EQUIP_CHAIN,
+                "item.armor.equip_chain");
+        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_CHAIN, SoundEvents.ITEM_ARMOR_EQUIP_DIAMOND,
+                "item.armor.equip_diamond");
+        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_DIAMOND, SoundEvents.ITEM_ARMOR_EQUIP_ELYTRA,
+                "item.armor.equip_elytra");
+        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_ELYTRA, SoundEvents.ITEM_ARMOR_EQUIP_GENERIC,
+                "item.armor.equip_generic");
+        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_GENERIC, SoundEvents.ITEM_ARMOR_EQUIP_GOLD,
+                "item.armor.equip_gold");
+        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_GOLD, SoundEvents.ITEM_ARMOR_EQUIP_IRON,
+                "item.armor.equip_iron");
+        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_IRON, SoundEvents.ITEM_ARMOR_EQUIP_LEATHER,
+                "item.armor.equip_leather");
+        insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_LEATHER, SoundEvents.ITEM_ARMOR_EQUIP_TURTLE,
+                "item.armor.equip_turtle");
         insertAfter(registry, SoundEvents.ITEM_ARMOR_EQUIP_TURTLE, SoundEvents.ITEM_AXE_STRIP, "item.axe.strip");
         insertAfter(registry, SoundEvents.ITEM_AXE_STRIP, SoundEvents.ITEM_BOTTLE_EMPTY, "item.bottle.empty");
         insertAfter(registry, SoundEvents.ITEM_BOTTLE_EMPTY, SoundEvents.ITEM_BOTTLE_FILL, "item.bottle.fill");
-        insertAfter(registry, SoundEvents.ITEM_BOTTLE_FILL, SoundEvents.ITEM_BOTTLE_FILL_DRAGONBREATH, "item.bottle.fill_dragonbreath");
-        insertAfter(registry, SoundEvents.ITEM_BOTTLE_FILL_DRAGONBREATH, SoundEvents.ITEM_BUCKET_EMPTY, "item.bucket.empty");
-        insertAfter(registry, SoundEvents.ITEM_BUCKET_EMPTY, SoundEvents.ITEM_BUCKET_EMPTY_FISH, "item.bucket.empty_fish");
-        insertAfter(registry, SoundEvents.ITEM_BUCKET_EMPTY_FISH, SoundEvents.ITEM_BUCKET_EMPTY_LAVA, "item.bucket.empty_lava");
+        insertAfter(registry, SoundEvents.ITEM_BOTTLE_FILL, SoundEvents.ITEM_BOTTLE_FILL_DRAGONBREATH,
+                "item.bottle.fill_dragonbreath");
+        insertAfter(registry, SoundEvents.ITEM_BOTTLE_FILL_DRAGONBREATH, SoundEvents.ITEM_BUCKET_EMPTY,
+                "item.bucket.empty");
+        insertAfter(registry, SoundEvents.ITEM_BUCKET_EMPTY, SoundEvents.ITEM_BUCKET_EMPTY_FISH,
+                "item.bucket.empty_fish");
+        insertAfter(registry, SoundEvents.ITEM_BUCKET_EMPTY_FISH, SoundEvents.ITEM_BUCKET_EMPTY_LAVA,
+                "item.bucket.empty_lava");
         insertAfter(registry, SoundEvents.ITEM_BUCKET_EMPTY_LAVA, SoundEvents.ITEM_BUCKET_FILL, "item.bucket.fill");
         insertAfter(registry, SoundEvents.ITEM_BUCKET_FILL, SoundEvents.ITEM_BUCKET_FILL_FISH, "item.bucket.fill_fish");
-        insertAfter(registry, SoundEvents.ITEM_BUCKET_FILL_FISH, SoundEvents.ITEM_BUCKET_FILL_LAVA, "item.bucket.fill_lava");
-        insertAfter(registry, SoundEvents.ITEM_BUCKET_FILL_LAVA, SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT, "item.chorus_fruit.teleport");
-        insertAfter(registry, SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT, SoundEvents.ITEM_ELYTRA_FLYING, "item.elytra.flying");
+        insertAfter(registry, SoundEvents.ITEM_BUCKET_FILL_FISH, SoundEvents.ITEM_BUCKET_FILL_LAVA,
+                "item.bucket.fill_lava");
+        insertAfter(registry, SoundEvents.ITEM_BUCKET_FILL_LAVA, SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT,
+                "item.chorus_fruit.teleport");
+        insertAfter(registry, SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT, SoundEvents.ITEM_ELYTRA_FLYING,
+                "item.elytra.flying");
         insertAfter(registry, SoundEvents.ITEM_ELYTRA_FLYING, SoundEvents.ITEM_FIRECHARGE_USE, "item.firecharge.use");
-        insertAfter(registry, SoundEvents.ITEM_FIRECHARGE_USE, SoundEvents.ITEM_FLINTANDSTEEL_USE, "item.flintandsteel.use");
+        insertAfter(registry, SoundEvents.ITEM_FIRECHARGE_USE, SoundEvents.ITEM_FLINTANDSTEEL_USE,
+                "item.flintandsteel.use");
         insertAfter(registry, SoundEvents.ITEM_FLINTANDSTEEL_USE, SoundEvents.ITEM_HOE_TILL, "item.hoe.till");
         insertAfter(registry, SoundEvents.ITEM_HOE_TILL, SoundEvents.ITEM_SHIELD_BLOCK, "item.shield.block");
         insertAfter(registry, SoundEvents.ITEM_SHIELD_BLOCK, SoundEvents.ITEM_SHIELD_BREAK, "item.shield.break");
         insertAfter(registry, SoundEvents.ITEM_SHIELD_BREAK, SoundEvents.ITEM_SHOVEL_FLATTEN, "item.shovel.flatten");
         insertAfter(registry, SoundEvents.ITEM_SHOVEL_FLATTEN, SoundEvents.ITEM_TOTEM_USE, "item.totem.use");
         insertAfter(registry, SoundEvents.ITEM_TOTEM_USE, SoundEvents.ITEM_TRIDENT_HIT, "item.trident.hit");
-        insertAfter(registry, SoundEvents.ITEM_TRIDENT_HIT, SoundEvents.ITEM_TRIDENT_HIT_GROUND, "item.trident.hit_ground");
-        insertAfter(registry, SoundEvents.ITEM_TRIDENT_HIT_GROUND, SoundEvents.ITEM_TRIDENT_RETURN, "item.trident.return");
-        insertAfter(registry, SoundEvents.ITEM_TRIDENT_RETURN, SoundEvents.ITEM_TRIDENT_RIPTIDE_1, "item.trident.riptide_1");
-        insertAfter(registry, SoundEvents.ITEM_TRIDENT_RIPTIDE_1, SoundEvents.ITEM_TRIDENT_RIPTIDE_2, "item.trident.riptide_2");
-        insertAfter(registry, SoundEvents.ITEM_TRIDENT_RIPTIDE_2, SoundEvents.ITEM_TRIDENT_RIPTIDE_3, "item.trident.riptide_3");
+        insertAfter(registry, SoundEvents.ITEM_TRIDENT_HIT, SoundEvents.ITEM_TRIDENT_HIT_GROUND,
+                "item.trident.hit_ground");
+        insertAfter(registry, SoundEvents.ITEM_TRIDENT_HIT_GROUND, SoundEvents.ITEM_TRIDENT_RETURN,
+                "item.trident.return");
+        insertAfter(registry, SoundEvents.ITEM_TRIDENT_RETURN, SoundEvents.ITEM_TRIDENT_RIPTIDE_1,
+                "item.trident.riptide_1");
+        insertAfter(registry, SoundEvents.ITEM_TRIDENT_RIPTIDE_1, SoundEvents.ITEM_TRIDENT_RIPTIDE_2,
+                "item.trident.riptide_2");
+        insertAfter(registry, SoundEvents.ITEM_TRIDENT_RIPTIDE_2, SoundEvents.ITEM_TRIDENT_RIPTIDE_3,
+                "item.trident.riptide_3");
         insertAfter(registry, SoundEvents.ITEM_TRIDENT_RIPTIDE_3, SoundEvents.ITEM_TRIDENT_THROW, "item.trident.throw");
         insertAfter(registry, SoundEvents.ITEM_TRIDENT_THROW, SoundEvents.ITEM_TRIDENT_THUNDER, "item.trident.thunder");
         insertAfter(registry, SoundEvents.ITEM_TRIDENT_THUNDER, SoundEvents.MUSIC_CREATIVE, "music.creative");
@@ -1480,7 +1633,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         insertAfter(registry, SoundEvents.MUSIC_END, SoundEvents.MUSIC_GAME, "music.game");
         insertAfter(registry, SoundEvents.MUSIC_GAME, SoundEvents.MUSIC_MENU, "music.menu");
         insertAfter(registry, SoundEvents.MUSIC_MENU, SoundEvents.MUSIC_NETHER_NETHER_WASTES, "music.nether");
-        insertAfter(registry, SoundEvents.MUSIC_NETHER_NETHER_WASTES, SoundEvents.MUSIC_UNDER_WATER, "music.under_water");
+        insertAfter(registry, SoundEvents.MUSIC_NETHER_NETHER_WASTES, SoundEvents.MUSIC_UNDER_WATER,
+                "music.under_water");
         insertAfter(registry, SoundEvents.MUSIC_UNDER_WATER, SoundEvents.MUSIC_DISC_11, "music_disc.11");
         insertAfter(registry, SoundEvents.MUSIC_DISC_11, SoundEvents.MUSIC_DISC_13, "music_disc.13");
         insertAfter(registry, SoundEvents.MUSIC_DISC_13, SoundEvents.MUSIC_DISC_BLOCKS, "music_disc.blocks");
@@ -1494,7 +1648,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         insertAfter(registry, SoundEvents.MUSIC_DISC_STRAD, SoundEvents.MUSIC_DISC_WAIT, "music_disc.wait");
         insertAfter(registry, SoundEvents.MUSIC_DISC_WAIT, SoundEvents.MUSIC_DISC_WARD, "music_disc.ward");
         insertAfter(registry, SoundEvents.MUSIC_DISC_WARD, SoundEvents.UI_BUTTON_CLICK, "ui.button.click");
-        insertAfter(registry, SoundEvents.UI_BUTTON_CLICK, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, "ui.toast.challenge_complete");
+        insertAfter(registry, SoundEvents.UI_BUTTON_CLICK, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+                "ui.toast.challenge_complete");
         insertAfter(registry, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundEvents.UI_TOAST_IN, "ui.toast.in");
         insertAfter(registry, SoundEvents.UI_TOAST_IN, SoundEvents.UI_TOAST_OUT, "ui.toast.out");
         insertAfter(registry, SoundEvents.UI_TOAST_OUT, SoundEvents.WEATHER_RAIN, "weather.rain");
@@ -1533,20 +1688,36 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
 
     @Override
     public void addExtraBlockTags(TagRegistry<Block> tags) {
-        tags.add(BlockTags.WOODEN_FENCES, Blocks.OAK_FENCE, Blocks.ACACIA_FENCE, Blocks.DARK_OAK_FENCE, Blocks.SPRUCE_FENCE, Blocks.BIRCH_FENCE, Blocks.JUNGLE_FENCE);
-        tags.add(BlockTags.SMALL_FLOWERS, Blocks.DANDELION, Blocks.POPPY, Blocks.BLUE_ORCHID, Blocks.ALLIUM, Blocks.AZURE_BLUET, Blocks.RED_TULIP, Blocks.ORANGE_TULIP, Blocks.WHITE_TULIP, Blocks.PINK_TULIP, Blocks.OXEYE_DAISY);
+        tags.add(BlockTags.WOODEN_FENCES, Blocks.OAK_FENCE, Blocks.ACACIA_FENCE, Blocks.DARK_OAK_FENCE,
+                Blocks.SPRUCE_FENCE, Blocks.BIRCH_FENCE, Blocks.JUNGLE_FENCE);
+        tags.add(BlockTags.SMALL_FLOWERS, Blocks.DANDELION, Blocks.POPPY, Blocks.BLUE_ORCHID, Blocks.ALLIUM,
+                Blocks.AZURE_BLUET, Blocks.RED_TULIP, Blocks.ORANGE_TULIP, Blocks.WHITE_TULIP, Blocks.PINK_TULIP,
+                Blocks.OXEYE_DAISY);
         tags.addTag(BlockTags.ENDERMAN_HOLDABLE, BlockTags.SMALL_FLOWERS);
-        tags.add(BlockTags.WALLS, Blocks.COBBLESTONE_WALL, Blocks.MOSSY_COBBLESTONE_WALL, Blocks.BRICK_WALL, Blocks.PRISMARINE_WALL, Blocks.RED_SANDSTONE_WALL, Blocks.MOSSY_STONE_BRICK_WALL, Blocks.GRANITE_WALL, Blocks.STONE_BRICK_WALL, Blocks.NETHER_BRICK_WALL, Blocks.ANDESITE_WALL, Blocks.RED_NETHER_BRICK_WALL, Blocks.SANDSTONE_WALL, Blocks.END_STONE_BRICK_WALL, Blocks.DIORITE_WALL);
+        tags.add(BlockTags.WALLS, Blocks.COBBLESTONE_WALL, Blocks.MOSSY_COBBLESTONE_WALL, Blocks.BRICK_WALL,
+                Blocks.PRISMARINE_WALL, Blocks.RED_SANDSTONE_WALL, Blocks.MOSSY_STONE_BRICK_WALL, Blocks.GRANITE_WALL,
+                Blocks.STONE_BRICK_WALL, Blocks.NETHER_BRICK_WALL, Blocks.ANDESITE_WALL, Blocks.RED_NETHER_BRICK_WALL,
+                Blocks.SANDSTONE_WALL, Blocks.END_STONE_BRICK_WALL, Blocks.DIORITE_WALL);
         tags.add(BlockTags.BAMBOO_PLANTABLE_ON);
-        tags.add(BlockTags.STANDING_SIGNS, Blocks.OAK_SIGN, Blocks.SPRUCE_SIGN, Blocks.BIRCH_SIGN, Blocks.ACACIA_SIGN, Blocks.JUNGLE_SIGN, Blocks.DARK_OAK_SIGN);
-        tags.add(BlockTags.WALL_SIGNS, Blocks.OAK_WALL_SIGN, Blocks.SPRUCE_WALL_SIGN, Blocks.BIRCH_WALL_SIGN, Blocks.ACACIA_WALL_SIGN, Blocks.JUNGLE_WALL_SIGN, Blocks.DARK_OAK_WALL_SIGN);
+        tags.add(BlockTags.STANDING_SIGNS, Blocks.OAK_SIGN, Blocks.SPRUCE_SIGN, Blocks.BIRCH_SIGN, Blocks.ACACIA_SIGN,
+                Blocks.JUNGLE_SIGN, Blocks.DARK_OAK_SIGN);
+        tags.add(BlockTags.WALL_SIGNS, Blocks.OAK_WALL_SIGN, Blocks.SPRUCE_WALL_SIGN, Blocks.BIRCH_WALL_SIGN,
+                Blocks.ACACIA_WALL_SIGN, Blocks.JUNGLE_WALL_SIGN, Blocks.DARK_OAK_WALL_SIGN);
         tags.addTag(BlockTags.SIGNS, BlockTags.STANDING_SIGNS);
         tags.addTag(BlockTags.SIGNS, BlockTags.WALL_SIGNS);
-        tags.add(BlockTags.BEDS, Blocks.RED_BED, Blocks.BLACK_BED, Blocks.BLUE_BED, Blocks.BROWN_BED, Blocks.CYAN_BED, Blocks.GRAY_BED, Blocks.GREEN_BED, Blocks.LIGHT_BLUE_BED, Blocks.LIGHT_GRAY_BED, Blocks.LIME_BED, Blocks.MAGENTA_BED, Blocks.ORANGE_BED, Blocks.PINK_BED, Blocks.PURPLE_BED, Blocks.WHITE_BED, Blocks.YELLOW_BED);
+        tags.add(BlockTags.BEDS, Blocks.RED_BED, Blocks.BLACK_BED, Blocks.BLUE_BED, Blocks.BROWN_BED, Blocks.CYAN_BED,
+                Blocks.GRAY_BED, Blocks.GREEN_BED, Blocks.LIGHT_BLUE_BED, Blocks.LIGHT_GRAY_BED, Blocks.LIME_BED,
+                Blocks.MAGENTA_BED, Blocks.ORANGE_BED, Blocks.PINK_BED, Blocks.PURPLE_BED, Blocks.WHITE_BED,
+                Blocks.YELLOW_BED);
         tags.addTag(BlockTags.FENCES, BlockTags.WOODEN_FENCES);
         tags.add(BlockTags.FENCES, Blocks.NETHER_BRICK_FENCE);
-        tags.add(BlockTags.DRAGON_IMMUNE, Blocks.BARRIER, Blocks.BEDROCK, Blocks.END_PORTAL, Blocks.END_PORTAL_FRAME, Blocks.END_GATEWAY, Blocks.COMMAND_BLOCK, Blocks.REPEATING_COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK, Blocks.STRUCTURE_BLOCK, Blocks.JIGSAW, Blocks.MOVING_PISTON, Blocks.OBSIDIAN, Blocks.END_STONE, Blocks.IRON_BARS);
-        tags.add(BlockTags.WITHER_IMMUNE, Blocks.BARRIER, Blocks.BEDROCK, Blocks.END_PORTAL, Blocks.END_PORTAL_FRAME, Blocks.END_GATEWAY, Blocks.COMMAND_BLOCK, Blocks.REPEATING_COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK, Blocks.STRUCTURE_BLOCK, Blocks.JIGSAW, Blocks.MOVING_PISTON);
+        tags.add(BlockTags.DRAGON_IMMUNE, Blocks.BARRIER, Blocks.BEDROCK, Blocks.END_PORTAL, Blocks.END_PORTAL_FRAME,
+                Blocks.END_GATEWAY, Blocks.COMMAND_BLOCK, Blocks.REPEATING_COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK,
+                Blocks.STRUCTURE_BLOCK, Blocks.JIGSAW, Blocks.MOVING_PISTON, Blocks.OBSIDIAN, Blocks.END_STONE,
+                Blocks.IRON_BARS);
+        tags.add(BlockTags.WITHER_IMMUNE, Blocks.BARRIER, Blocks.BEDROCK, Blocks.END_PORTAL, Blocks.END_PORTAL_FRAME,
+                Blocks.END_GATEWAY, Blocks.COMMAND_BLOCK, Blocks.REPEATING_COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK,
+                Blocks.STRUCTURE_BLOCK, Blocks.JIGSAW, Blocks.MOVING_PISTON);
         super.addExtraBlockTags(tags);
     }
 
@@ -1558,44 +1729,32 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         copyBlocks(tags, blockTags, ItemTags.BEDS, BlockTags.BEDS);
         copyBlocks(tags, blockTags, ItemTags.FENCES, BlockTags.FENCES);
         copyBlocks(tags, blockTags, ItemTags.SIGNS, BlockTags.STANDING_SIGNS);
-        tags.add(ItemTags.MUSIC_DISCS,
-                Items.MUSIC_DISC_13,
-                Items.MUSIC_DISC_CAT,
-                Items.MUSIC_DISC_BLOCKS,
-                Items.MUSIC_DISC_CHIRP,
-                Items.MUSIC_DISC_FAR,
-                Items.MUSIC_DISC_MALL,
-                Items.MUSIC_DISC_MELLOHI,
-                Items.MUSIC_DISC_STAL,
-                Items.MUSIC_DISC_STRAD,
-                Items.MUSIC_DISC_WARD,
-                Items.MUSIC_DISC_11,
+        tags.add(ItemTags.MUSIC_DISCS, Items.MUSIC_DISC_13, Items.MUSIC_DISC_CAT, Items.MUSIC_DISC_BLOCKS,
+                Items.MUSIC_DISC_CHIRP, Items.MUSIC_DISC_FAR, Items.MUSIC_DISC_MALL, Items.MUSIC_DISC_MELLOHI,
+                Items.MUSIC_DISC_STAL, Items.MUSIC_DISC_STRAD, Items.MUSIC_DISC_WARD, Items.MUSIC_DISC_11,
                 Items.MUSIC_DISC_WAIT);
-        tags.add(ItemTags.COALS,
-                Items.COAL,
-                Items.CHARCOAL);
-        tags.add(ItemTags.ARROWS,
-                Items.ARROW,
-                Items.TIPPED_ARROW,
-                Items.SPECTRAL_ARROW);
+        tags.add(ItemTags.COALS, Items.COAL, Items.CHARCOAL);
+        tags.add(ItemTags.ARROWS, Items.ARROW, Items.TIPPED_ARROW, Items.SPECTRAL_ARROW);
         super.addExtraItemTags(tags, blockTags);
     }
 
     @Override
     public void addExtraEntityTags(TagRegistry<EntityType<?>> tags) {
         tags.add(EntityTypeTags.SKELETONS, EntityType.SKELETON, EntityType.STRAY, EntityType.WITHER_SKELETON);
-        tags.add(EntityTypeTags.RAIDERS, EntityType.EVOKER, EntityType.VINDICATOR, EntityType.ILLUSIONER, EntityType.WITCH);
+        tags.add(EntityTypeTags.RAIDERS, EntityType.EVOKER, EntityType.VINDICATOR, EntityType.ILLUSIONER,
+                EntityType.WITCH);
         super.addExtraEntityTags(tags);
     }
 
     @ThreadSafe
     public static void updateCameraPosition() {
         if (ConnectionInfo.protocolVersion <= Protocols.V1_13_2) {
-            ClientPlayNetworkHandler networkHandler = MinecraftClient.getInstance().getNetworkHandler();
-            ClientPlayerEntity player = MinecraftClient.getInstance().player;
+            ClientPlayNetworkHandler networkHandler = Protocol_1_13_2.client.getNetworkHandler();
+            ClientPlayerEntity player = Protocol_1_13_2.client.player;
             if (networkHandler != null && player != null) {
                 ChunkSectionPos chunkPos = ChunkSectionPos.from(player);
-                networkHandler.onChunkRenderDistanceCenter(new ChunkRenderDistanceCenterS2CPacket(chunkPos.getSectionX(), chunkPos.getSectionZ()));
+                networkHandler.onChunkRenderDistanceCenter(
+                        new ChunkRenderDistanceCenterS2CPacket(chunkPos.getSectionX(), chunkPos.getSectionZ()));
             }
         }
     }

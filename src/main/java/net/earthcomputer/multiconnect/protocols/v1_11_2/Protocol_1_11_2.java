@@ -48,6 +48,8 @@ import java.util.Set;
 
 public class Protocol_1_11_2 extends Protocol_1_12 {
 
+    private MinecraftClient client = MinecraftClient.getInstance();
+
     public static void registerTranslators() {
         ProtocolRegistry.registerInboundTranslator(StatisticsS2CPacket.class, buf -> {
             buf.enablePassthroughMode();
@@ -79,7 +81,8 @@ public class Protocol_1_11_2 extends Protocol_1_12 {
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
         remove(packets, EntityS2CPacket_1_16_5.class);
-        insertAfter(packets, EntityS2CPacket.Rotate.class, PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
+        insertAfter(packets, EntityS2CPacket.Rotate.class,
+                PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
         remove(packets, UnlockRecipesS2CPacket.class);
         remove(packets, SelectAdvancementTabS2CPacket.class);
         remove(packets, AdvancementUpdateS2CPacket.class);
@@ -91,10 +94,12 @@ public class Protocol_1_11_2 extends Protocol_1_12 {
         List<PacketInfo<?>> packets = super.getServerboundPackets();
         remove(packets, PlaceRecipeC2SPacket_1_12.class);
         remove(packets, PlayerMoveC2SPacket.OnGroundOnly.class);
-        insertAfter(packets, PlayerMoveC2SPacket.LookAndOnGround.class, PacketInfo.of(PlayerMoveC2SPacket.OnGroundOnly.class, PlayerMoveC2SPacket.OnGroundOnly::read));
+        insertAfter(packets, PlayerMoveC2SPacket.LookAndOnGround.class,
+                PacketInfo.of(PlayerMoveC2SPacket.OnGroundOnly.class, PlayerMoveC2SPacket.OnGroundOnly::read));
         remove(packets, RecipeBookDataC2SPacket_1_16_1.class);
         remove(packets, AdvancementTabC2SPacket.class);
-        insertAfter(packets, ClientStatusC2SPacket.class, PacketInfo.of(ClientStatusC2SPacket_1_11_2.class, ClientStatusC2SPacket_1_11_2::new));
+        insertAfter(packets, ClientStatusC2SPacket.class,
+                PacketInfo.of(ClientStatusC2SPacket_1_11_2.class, ClientStatusC2SPacket_1_11_2::new));
         remove(packets, ClientStatusC2SPacket.class);
         return packets;
     }
@@ -103,10 +108,11 @@ public class Protocol_1_11_2 extends Protocol_1_12 {
     @ThreadSafe
     public boolean onSendPacket(Packet<?> packet) {
         if (packet instanceof PlaceRecipeC2SPacket_1_12 recipePlacement) {
-            MinecraftClient.getInstance().execute(() -> {
-                PlayerEntity player = MinecraftClient.getInstance().player;
+            this.client.execute(() -> {
+                PlayerEntity player = this.client.player;
                 if (player != null) {
-                    RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler).multiconnect_getRecipeBookEmulator();
+                    RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler)
+                            .multiconnect_getRecipeBookEmulator();
                     recipeBookEmulator.emulateRecipePlacement(recipePlacement);
                 }
             });
@@ -119,7 +125,8 @@ public class Protocol_1_11_2 extends Protocol_1_12 {
         if (packet instanceof AdvancementTabC2SPacket advancementTabPacket) {
             if (advancementTabPacket.getAction() == AdvancementTabC2SPacket.Action.OPENED_TAB) {
                 checkConnectionValid(connection);
-                connection.onSelectAdvancementTab(new SelectAdvancementTabS2CPacket(advancementTabPacket.getTabToOpen()));
+                connection
+                        .onSelectAdvancementTab(new SelectAdvancementTabS2CPacket(advancementTabPacket.getTabToOpen()));
             }
             return false;
         }
@@ -231,7 +238,8 @@ public class Protocol_1_11_2 extends Protocol_1_12 {
 
     @Override
     public boolean acceptEntityData(Class<? extends Entity> clazz, TrackedData<?> data) {
-        if (clazz == PlayerEntity.class && (data == PlayerEntityAccessor.getLeftShoulderEntity() || data == PlayerEntityAccessor.getRightShoulderEntity())) {
+        if (clazz == PlayerEntity.class && (data == PlayerEntityAccessor.getLeftShoulderEntity()
+                || data == PlayerEntityAccessor.getRightShoulderEntity())) {
             return false;
         }
         if (clazz == IllagerEntity.class && data == Protocol_1_13_2.OLD_ILLAGER_FLAGS) {
@@ -245,7 +253,8 @@ public class Protocol_1_11_2 extends Protocol_1_12 {
         List<RecipeInfo<?>> recipes = super.getRecipes();
         recipes.removeIf(recipe -> {
             if (recipe.getOutput().getItem() instanceof BlockItem block) {
-                if (block.getBlock() instanceof ConcretePowderBlock || block.getBlock() instanceof GlazedTerracottaBlock) {
+                if (block.getBlock() instanceof ConcretePowderBlock
+                        || block.getBlock() instanceof GlazedTerracottaBlock) {
                     return true;
                 }
             }

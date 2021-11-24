@@ -27,13 +27,21 @@ import java.util.concurrent.locks.ReadWriteLock;
 @Mixin(DataTracker.class)
 public abstract class MixinDataTracker implements IDataTracker {
 
-    @Shadow @Final @Mutable
+    @Shadow
+    @Final
+    @Mutable
     private Entity trackedEntity;
-    @Shadow @Final private Int2ObjectMap<DataTracker.Entry<?>> entries;
-    @Shadow @Final private ReadWriteLock lock;
-    @Shadow private boolean dirty;
+    @Shadow
+    @Final
+    private Int2ObjectMap<DataTracker.Entry<?>> entries;
+    @Shadow
+    @Final
+    private ReadWriteLock lock;
+    @Shadow
+    private boolean dirty;
 
-    @Shadow protected abstract <T> void addTrackedData(TrackedData<T> trackedData_1, T object_1);
+    @Shadow
+    protected abstract <T> void addTrackedData(TrackedData<T> trackedData_1, T object_1);
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onInit(Entity entity, CallbackInfo ci) {
@@ -41,7 +49,8 @@ public abstract class MixinDataTracker implements IDataTracker {
     }
 
     @Inject(method = "registerData", at = @At("RETURN"))
-    private static <T> void onRegisterData(Class<? extends Entity> clazz, TrackedDataHandler<T> dataType, CallbackInfoReturnable<TrackedData<T>> ci) {
+    private static <T> void onRegisterData(Class<? extends Entity> clazz, TrackedDataHandler<T> dataType,
+            CallbackInfoReturnable<TrackedData<T>> ci) {
         DataTrackerManager.onRegisterData(clazz, ci.getReturnValue());
     }
 
@@ -73,17 +82,13 @@ public abstract class MixinDataTracker implements IDataTracker {
     private void assertCorrectType(TrackedData<?> requested, CallbackInfoReturnable<DataTracker.Entry<?>> ci) {
         if (ci.getReturnValue() == null) {
             throw new IllegalStateException("getEntry returned null for ID %d(%s) for entity %s!\n%s".formatted(
-                    requested.getId(),
-                    DebugUtils.getTrackedDataName(requested),
-                    Registry.ENTITY_TYPE.getId(trackedEntity.getType()),
-                    DebugUtils.getAllTrackedData(trackedEntity)));
+                    requested.getId(), DebugUtils.getTrackedDataName(requested),
+                    Registry.ENTITY_TYPE.getId(trackedEntity.getType()), DebugUtils.getAllTrackedData(trackedEntity)));
         }
         if (ci.getReturnValue().getData().getType() != requested.getType()) {
             throw new IllegalStateException("getEntry returned wrong type for ID %d(%s) for entity %s!\n%s".formatted(
-                    requested.getId(),
-                    DebugUtils.getTrackedDataName(requested),
-                    Registry.ENTITY_TYPE.getId(trackedEntity.getType()),
-                    DebugUtils.getAllTrackedData(trackedEntity)));
+                    requested.getId(), DebugUtils.getTrackedDataName(requested),
+                    Registry.ENTITY_TYPE.getId(trackedEntity.getType()), DebugUtils.getAllTrackedData(trackedEntity)));
         }
     }
 
@@ -91,14 +96,9 @@ public abstract class MixinDataTracker implements IDataTracker {
     private void improveErrorMessage(DataTracker.Entry<?> entry, DataTracker.Entry<?> entry2, CallbackInfo ci) {
         throw new IllegalStateException(
                 "Invalid entity data item type for field %d(%s) on entity %s: into=%s(%s), from=%s(%s)\n%s".formatted(
-                entry.getData().getId(),
-                DebugUtils.getTrackedDataName(entry.getData()),
-                Registry.ENTITY_TYPE.getId(trackedEntity.getType()),
-                entry.get(),
-                entry.get().getClass(),
-                entry2.get(),
-                entry2.get().getClass(),
-                DebugUtils.getAllTrackedData(trackedEntity)));
+                        entry.getData().getId(), DebugUtils.getTrackedDataName(entry.getData()),
+                        Registry.ENTITY_TYPE.getId(trackedEntity.getType()), entry.get(), entry.get().getClass(),
+                        entry2.get(), entry2.get().getClass(), DebugUtils.getAllTrackedData(trackedEntity)));
     }
 
     @Override
@@ -122,7 +122,7 @@ public abstract class MixinDataTracker implements IDataTracker {
     public void multiconnect_setEntityTo(Entity entity) {
         lock.writeLock().lock();
         this.trackedEntity = entity;
-        //noinspection ConstantConditions
+        // noinspection ConstantConditions
         var otherEntries = ((MixinDataTracker) (Object) entity.getDataTracker()).entries.values();
         var oldThisEntries = new HashMap<>(this.entries);
         this.entries.clear();

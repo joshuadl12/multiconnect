@@ -21,10 +21,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MerchantScreenHandler.class)
 public abstract class MixinMerchantContainer extends ScreenHandler {
+    @Shadow
+    @Final
+    private MinecraftClient client = MinecraftClient.getInstance();
 
-    @Shadow @Final private MerchantInventory merchantInventory;
+    @Shadow
+    @Final
+    private MerchantInventory merchantInventory;
 
-    @Shadow public abstract TradeOfferList getRecipes();
+    @Shadow
+    public abstract TradeOfferList getRecipes();
 
     protected MixinMerchantContainer(ScreenHandlerType<?> type, int syncId) {
         super(type, syncId);
@@ -39,8 +45,8 @@ public abstract class MixinMerchantContainer extends ScreenHandler {
         if (recipeId >= getRecipes().size())
             return;
 
-        var interactionManager = MinecraftClient.getInstance().interactionManager;
-        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        var interactionManager = this.client.interactionManager;
+        ClientPlayerEntity player = this.client.player;
         assert player != null;
         assert interactionManager != null;
 
@@ -68,8 +74,8 @@ public abstract class MixinMerchantContainer extends ScreenHandler {
     }
 
     @Unique
-    private void autofill(ClientPlayerInteractionManager interactionManager, ClientPlayerEntity player,
-                          int inputSlot, ItemStack stackNeeded) {
+    private void autofill(ClientPlayerInteractionManager interactionManager, ClientPlayerEntity player, int inputSlot,
+            ItemStack stackNeeded) {
         if (stackNeeded.isEmpty())
             return;
 

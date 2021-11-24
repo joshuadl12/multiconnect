@@ -13,10 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPlayNetworkHandler.class)
 public abstract class MixinClientPlayNetworkHandler {
-    @Shadow public abstract void onSimulationDistance(SimulationDistanceS2CPacket packet);
+
+    @Shadow
+    public abstract void onSimulationDistance(SimulationDistanceS2CPacket packet);
 
     @Inject(method = "onChunkLoadDistance", at = @At("RETURN"))
-    private void onOnChunkLoadDistance(ChunkLoadDistanceS2CPacket packet, CallbackInfo ci) {
+    void onOnChunkLoadDistance(ChunkLoadDistanceS2CPacket packet, CallbackInfo ci) {
         if (ConnectionInfo.protocolVersion <= Protocols.V1_17_1) {
             onSimulationDistance(new SimulationDistanceS2CPacket(packet.getDistance()));
         }

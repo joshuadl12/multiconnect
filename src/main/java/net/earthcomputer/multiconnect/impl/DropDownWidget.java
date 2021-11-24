@@ -24,10 +24,12 @@ public class DropDownWidget<T> extends PressableWidget {
 
     private final Function<T, Text> labelExtractor;
     private Function<T, Text> categoryLabelExtractor;
-    private TooltipRenderer<T> tooltipRenderer = (stack, element, x, y, isCategory) -> {};
+    private TooltipRenderer<T> tooltipRenderer = (stack, element, x, y, isCategory) -> {
+    };
     private final List<Category> categories = new ArrayList<>();
     private T value;
-    private Consumer<T> valueListener = val -> {};
+    private Consumer<T> valueListener = val -> {
+    };
 
     private int hoveredCategory = -1;
     private int hoveredSubcategory = -1;
@@ -120,6 +122,7 @@ public class DropDownWidget<T> extends PressableWidget {
     @Override
     public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
         super.render(matrices, mouseX, mouseY, delta);
+        MinecraftClient client = MinecraftClient.getInstance();
         if (visible && expanded) {
             updateHover(mouseX, mouseY);
 
@@ -130,11 +133,13 @@ public class DropDownWidget<T> extends PressableWidget {
                 int categoryY = this.y + height + DROP_DOWN_ELEMENT_HEIGHT * categoryIndex;
                 renderButtonBackground(matrices, x, categoryY, categoryIndex == hoveredCategory);
 
-                TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
+                TextRenderer textRenderer = client.textRenderer;
                 int textY = categoryY + (height - 8) / 2;
-                drawCenteredText(matrices, textRenderer, categoryLabelExtractor.apply(category.value), x + width / 2, textY, 0xffffff);
+                drawCenteredText(matrices, textRenderer, categoryLabelExtractor.apply(category.value), x + width / 2,
+                        textY, 0xffffff);
                 if (category.hasChildren()) {
-                    drawTextWithShadow(matrices, textRenderer, EXPAND_RIGHT_TEXT, x + width - 5 - textRenderer.getWidth(EXPAND_RIGHT_TEXT), textY, 0xc0c0c0);
+                    drawTextWithShadow(matrices, textRenderer, EXPAND_RIGHT_TEXT,
+                            x + width - 5 - textRenderer.getWidth(EXPAND_RIGHT_TEXT), textY, 0xc0c0c0);
                 }
             }
 
@@ -150,10 +155,13 @@ public class DropDownWidget<T> extends PressableWidget {
 
                     for (int subcategoryIndex = 0; subcategoryIndex < category.children.size(); subcategoryIndex++) {
                         int subcategoryY = subcategoriesY + DROP_DOWN_ELEMENT_HEIGHT * subcategoryIndex;
-                        renderButtonBackground(matrices, subcategoriesX, subcategoryY, subcategoryIndex == hoveredSubcategory);
+                        renderButtonBackground(matrices, subcategoriesX, subcategoryY,
+                                subcategoryIndex == hoveredSubcategory);
 
-                        TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
-                        drawCenteredText(matrices, textRenderer, labelExtractor.apply(category.children.get(subcategoryIndex)), subcategoriesX + width / 2, subcategoryY + (height - 8) / 2, 0xffffff);
+                        TextRenderer textRenderer = client.textRenderer;
+                        drawCenteredText(matrices, textRenderer,
+                                labelExtractor.apply(category.children.get(subcategoryIndex)),
+                                subcategoriesX + width / 2, subcategoryY + (height - 8) / 2, 0xffffff);
                     }
                 }
 
@@ -181,8 +189,10 @@ public class DropDownWidget<T> extends PressableWidget {
     @Override
     public void renderButton(MatrixStack matrices, int mouseX, int mouseY, float delta) {
         super.renderButton(matrices, mouseX, mouseY, delta);
-        TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
-        drawTextWithShadow(matrices, textRenderer, EXPAND_DOWN_TEXT, x + width - 5 - textRenderer.getWidth(EXPAND_DOWN_TEXT), y + (height - 8) / 2, 0xc0c0c0);
+        MinecraftClient client = MinecraftClient.getInstance();
+        TextRenderer textRenderer = client.textRenderer;
+        drawTextWithShadow(matrices, textRenderer, EXPAND_DOWN_TEXT,
+                x + width - 5 - textRenderer.getWidth(EXPAND_DOWN_TEXT), y + (height - 8) / 2, 0xc0c0c0);
         if (isHovered())
             if (hoveredCategory == -1 || !expanded) {
                 tooltipRenderer.render(matrices, value, mouseX, mouseY, false);
@@ -216,27 +226,33 @@ public class DropDownWidget<T> extends PressableWidget {
         if (isMouseInMainMenuPart(mouseX, mouseY)) {
             hoveredCategory = (mouseY - y - height) / DROP_DOWN_ELEMENT_HEIGHT;
         } else {
-            // if the mouse is not currently over a category, keep it hovered if the category actually has children, otherwise un-hover it
-            if (hoveredCategory != -1 && hoveredCategory < categories.size() && !categories.get(hoveredCategory).hasChildren()) {
+            // if the mouse is not currently over a category, keep it hovered if the
+            // category actually has children, otherwise un-hover it
+            if (hoveredCategory != -1 && hoveredCategory < categories.size()
+                    && !categories.get(hoveredCategory).hasChildren()) {
                 hoveredCategory = -1;
             }
         }
     }
 
     private boolean isMouseInMainMenuPart(int mouseX, int mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y + height && mouseY < y + height + DROP_DOWN_ELEMENT_HEIGHT * categories.size();
+        return mouseX >= x && mouseX < x + width && mouseY >= y + height
+                && mouseY < y + height + DROP_DOWN_ELEMENT_HEIGHT * categories.size();
     }
 
     private boolean shouldExpandSubcategoriesLeft() {
-        Screen currentScreen = MinecraftClient.getInstance().currentScreen;
+        MinecraftClient client = MinecraftClient.getInstance();
+        Screen currentScreen = client.currentScreen;
         assert currentScreen != null;
         return x + width + width > currentScreen.width;
     }
 
     private boolean shouldExpendSubcategoriesUp() {
-        Screen currentScreen = MinecraftClient.getInstance().currentScreen;
+        MinecraftClient client = MinecraftClient.getInstance();
+        Screen currentScreen = client.currentScreen;
         assert currentScreen != null;
-        return y + height + DROP_DOWN_ELEMENT_HEIGHT * hoveredCategory + DROP_DOWN_ELEMENT_HEIGHT * categories.get(hoveredCategory).children.size() > currentScreen.height;
+        return y + height + DROP_DOWN_ELEMENT_HEIGHT * hoveredCategory
+                + DROP_DOWN_ELEMENT_HEIGHT * categories.get(hoveredCategory).children.size() > currentScreen.height;
     }
 
     @Override

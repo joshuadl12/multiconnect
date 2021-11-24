@@ -19,17 +19,21 @@ public class MixinClientPlayNetworkHandler {
     @Inject(method = "onUnlockRecipes", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/util/thread/ThreadExecutor;)V", shift = At.Shift.AFTER))
     private void onOnUnlockRecipes(UnlockRecipesS2CPacket packet, CallbackInfo ci) {
         if (ConnectionInfo.protocolVersion <= Protocols.V1_16_1) {
-            ClientPlayerEntity player = MinecraftClient.getInstance().player;
+            MinecraftClient client = MinecraftClient.getInstance();
+            ClientPlayerEntity player = client.player;
             assert player != null;
 
             // Copy over old options that weren't sent on-thread to avoid a race condition
             RecipeBook oldRecipeBook = player.getRecipeBook();
             RecipeBookOptions newOptions = packet.getOptions();
 
-            newOptions.setGuiOpen(RecipeBookCategory.BLAST_FURNACE, oldRecipeBook.isGuiOpen(RecipeBookCategory.BLAST_FURNACE));
-            newOptions.setFilteringCraftable(RecipeBookCategory.BLAST_FURNACE, oldRecipeBook.isFilteringCraftable(RecipeBookCategory.BLAST_FURNACE));
+            newOptions.setGuiOpen(RecipeBookCategory.BLAST_FURNACE,
+                    oldRecipeBook.isGuiOpen(RecipeBookCategory.BLAST_FURNACE));
+            newOptions.setFilteringCraftable(RecipeBookCategory.BLAST_FURNACE,
+                    oldRecipeBook.isFilteringCraftable(RecipeBookCategory.BLAST_FURNACE));
             newOptions.setGuiOpen(RecipeBookCategory.SMOKER, oldRecipeBook.isGuiOpen(RecipeBookCategory.SMOKER));
-            newOptions.setFilteringCraftable(RecipeBookCategory.SMOKER, oldRecipeBook.isFilteringCraftable(RecipeBookCategory.SMOKER));
+            newOptions.setFilteringCraftable(RecipeBookCategory.SMOKER,
+                    oldRecipeBook.isFilteringCraftable(RecipeBookCategory.SMOKER));
         }
     }
 }

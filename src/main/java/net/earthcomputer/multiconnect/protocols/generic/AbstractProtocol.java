@@ -43,7 +43,8 @@ public abstract class AbstractProtocol implements IUtils {
     private static final List<Block> collisionBoxesToRevert = new ArrayList<>();
 
     private int protocolVersion;
-    private final Supplier<BlockConnector> lazyBlockConnector = Suppliers.memoize(() -> BlockConnections.buildConnector(protocolVersion));
+    private final Supplier<BlockConnector> lazyBlockConnector = Suppliers
+            .memoize(() -> BlockConnections.buildConnector(protocolVersion));
 
     // To be called by ProtocolRegistry only!
     public void setProtocolVersion(int protocolVersion) {
@@ -63,7 +64,8 @@ public abstract class AbstractProtocol implements IUtils {
         }
         markChangedCollisionBoxes();
         ((MinecraftClientAccessor) MinecraftClient.getInstance()).callInitializeSearchableContainers();
-        ((MinecraftClientAccessor) MinecraftClient.getInstance()).getSearchManager().reload(MinecraftClient.getInstance().getResourceManager());
+        ((MinecraftClientAccessor) MinecraftClient.getInstance()).getSearchManager()
+                .reload(MinecraftClient.getInstance().getResourceManager());
     }
 
     public void disable() {
@@ -74,27 +76,31 @@ public abstract class AbstractProtocol implements IUtils {
         RegistryMutator mutator = new RegistryMutator();
         mutateRegistries(mutator);
         mutator.runMutations(DefaultRegistries.DEFAULT_REGISTRIES.keySet());
-        DefaultRegistries.DEFAULT_REGISTRIES.keySet().forEach((registry -> postMutateRegistry(registry, reAddMissingValues)));
+        DefaultRegistries.DEFAULT_REGISTRIES.keySet()
+                .forEach((registry -> postMutateRegistry(registry, reAddMissingValues)));
         recomputeBlockStates();
     }
 
     protected void modifyPacketLists() {
-        //noinspection ConstantConditions
+        // noinspection ConstantConditions
         INetworkState networkState = (INetworkState) (Object) NetworkState.PLAY;
         networkState.getPacketHandlers().values().forEach(IPacketHandler::multiconnect_clear);
 
         for (PacketInfo<?> packetInfo : getClientboundPackets()) {
-            doRegister(networkState.getPacketHandlers().get(NetworkSide.CLIENTBOUND), packetInfo.getPacketClass(), packetInfo.getFactory());
+            doRegister((IPacketHandler<?>) networkState.getPacketHandlers().get(NetworkSide.CLIENTBOUND),
+                    packetInfo.getPacketClass(), packetInfo.getFactory());
             networkState.multiconnect_onAddPacket(packetInfo.getPacketClass());
         }
         for (PacketInfo<?> packetInfo : getServerboundPackets()) {
-            doRegister(networkState.getPacketHandlers().get(NetworkSide.SERVERBOUND), packetInfo.getPacketClass(), packetInfo.getFactory());
+            doRegister((IPacketHandler<?>) networkState.getPacketHandlers().get(NetworkSide.SERVERBOUND),
+                    packetInfo.getPacketClass(), packetInfo.getFactory());
             networkState.multiconnect_onAddPacket(packetInfo.getPacketClass());
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends PacketListener, P extends Packet<T>> void doRegister(IPacketHandler<T> handler, Class<?> packetClass, Function<PacketByteBuf, ?> factory) {
+    private static <T extends PacketListener, P extends Packet<T>> void doRegister(IPacketHandler<T> handler,
+            Class<?> packetClass, Function<PacketByteBuf, ?> factory) {
         handler.multiconnect_register((Class<P>) packetClass, (Function<PacketByteBuf, P>) factory);
     }
 
@@ -131,8 +137,10 @@ public abstract class AbstractProtocol implements IUtils {
     public final boolean preSendPacket(Packet<?> packet) {
         if (packet instanceof IServerboundSlotPacket slotPacket) {
             if (!slotPacket.multiconnect_isProcessed()) {
-                // Packets that go through the ClientPlayerInteractionManager have enough context to be translated, see MixinClientPlayerInteractionManager
-                LOGGER.warn("Dropping untranslated serverbound click slot packet, sent without the client player interaction manager");
+                // Packets that go through the ClientPlayerInteractionManager have enough
+                // context to be translated, see MixinClientPlayerInteractionManager
+                LOGGER.warn(
+                        "Dropping untranslated serverbound click slot packet, sent without the client player interaction manager");
                 return false;
             }
             if (slotPacket.multiconnect_getSlotId() == -1) {
@@ -153,14 +161,17 @@ public abstract class AbstractProtocol implements IUtils {
 
     @SuppressWarnings("unchecked")
     private <T> void postMutateRegistry(Registry<T> registry, boolean reAddMissingValues) {
-        if (!(registry instanceof SimpleRegistry)) return;
+        if (!(registry instanceof SimpleRegistry))
+            return;
         ISimpleRegistry<T> iregistry = (ISimpleRegistry<T>) registry;
         iregistry.lockRealEntries();
         if (!reAddMissingValues) {
             return;
         }
-        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES.get(registry);
-        if (defaultRegistries == null) return;
+        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES
+                .get(registry);
+        if (defaultRegistries == null)
+            return;
 
         Identifier defaultId;
         T defaultValue;
@@ -204,7 +215,8 @@ public abstract class AbstractProtocol implements IUtils {
 
     private void revertCollisionBoxes() {
         if (!collisionBoxesToRevert.isEmpty()) {
-            // Lithium compat: make sure tags have been initialized before initializing shape cache
+            // Lithium compat: make sure tags have been initialized before initializing
+            // shape cache
             RequiredTagListRegistry.clearAllTags();
         }
         for (Block block : collisionBoxesToRevert) {
@@ -217,7 +229,8 @@ public abstract class AbstractProtocol implements IUtils {
 
     protected void markCollisionBoxChanged(Block block) {
         if (collisionBoxesToRevert.isEmpty()) {
-            // Lithium compat: make sure tags have been initialized before initializing shape cache
+            // Lithium compat: make sure tags have been initialized before initializing
+            // shape cache
             RequiredTagListRegistry.clearAllTags();
         }
         for (BlockState state : block.getStateManager().getStates()) {
@@ -281,16 +294,17 @@ public abstract class AbstractProtocol implements IUtils {
     }
 
     /**
-     * Individual pieces of translation (e.g. heightmap translation for 1.13.2 <-> 1.14) should be directly translated
-     * to the current version.
+     * Individual pieces of translation (e.g. heightmap translation for 1.13.2 <->
+     * 1.14) should be directly translated to the current version.
      */
     @ThreadSafe(withGameThread = false)
     public void postTranslateChunk(ChunkDataTranslator translator, ChunkData data) {
     }
 
     /**
-     * Whether the given packet should translate async (and not block the network thread). Currently only packets with
-     * an associated chunk position can be translated. Override {@link #extractChunkPos} as well to extract the chunk
+     * Whether the given packet should translate async (and not block the network
+     * thread). Currently only packets with an associated chunk position can be
+     * translated. Override {@link #extractChunkPos} as well to extract the chunk
      * pos of a packet.
      */
     @ThreadSafe(withGameThread = false)
@@ -316,7 +330,7 @@ public abstract class AbstractProtocol implements IUtils {
         private static final List<PacketInfo<?>> SERVERBOUND = new ArrayList<>();
 
         private static void initialize() {
-            //noinspection ConstantConditions
+            // noinspection ConstantConditions
             var packetHandlerMap = ((INetworkState) (Object) NetworkState.PLAY).getPacketHandlers();
             IPacketHandler<?> clientPacketMap = packetHandlerMap.get(NetworkSide.CLIENTBOUND);
             CLIENTBOUND.addAll(clientPacketMap.multiconnect_values());

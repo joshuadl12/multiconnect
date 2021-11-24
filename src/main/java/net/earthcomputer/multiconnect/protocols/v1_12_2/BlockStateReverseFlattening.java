@@ -1,13 +1,15 @@
 package net.earthcomputer.multiconnect.protocols.v1_12_2;
 
-import com.mojang.serialization.Dynamic;
-import net.minecraft.datafixer.fix.BlockStateFlattening;
-import net.minecraft.util.Identifier;
-import org.apache.commons.lang3.tuple.Pair;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.mojang.serialization.Dynamic;
+
+import org.apache.commons.lang3.tuple.Pair;
+
+import net.minecraft.datafixer.fix.BlockStateFlattening;
+import net.minecraft.util.Identifier;
 
 public class BlockStateReverseFlattening {
 

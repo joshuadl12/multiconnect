@@ -28,9 +28,12 @@ public class ConnectionHandler {
     private static final Logger LOGGER = LogManager.getLogger("multiconnect");
 
     public static boolean preConnect(InetSocketAddress addr, ServerAddress serverAddress, String addressField) {
-        // Hypixel has their own closed-source connection proxy and closed-source anti-cheat.
-        // Users were getting banned for odd reasons. Their maps are designed to have fair play between clients on any
-        // version, so we force the current protocol version here to disable any kind of bridge, in the hope that users
+        // Hypixel has their own closed-source connection proxy and closed-source
+        // anti-cheat.
+        // Users were getting banned for odd reasons. Their maps are designed to have
+        // fair play between clients on any
+        // version, so we force the current protocol version here to disable any kind of
+        // bridge, in the hope that users
         // don't get banned because they are using multiconnect.
         String testIp = normalizeAddress(addr.getHostName()).split(":")[0].toLowerCase(Locale.ROOT);
         if (testIp.endsWith(".")) {
@@ -42,7 +45,8 @@ public class ConnectionHandler {
             } else {
                 ConnectionInfo.protocolVersion = ConnectionMode.protocolValues()[1].getValue();
             }
-            LOGGER.info("Hypixel detected, protocol version forced to " + ConnectionInfo.protocolVersion + " (" + ConnectionMode.byValue(ConnectionInfo.protocolVersion).getName() + ")");
+            LOGGER.info("Hypixel detected, protocol version forced to " + ConnectionInfo.protocolVersion + " ("
+                    + ConnectionMode.byValue(ConnectionInfo.protocolVersion).getName() + ")");
             return true;
         }
 
@@ -50,12 +54,14 @@ public class ConnectionHandler {
             int forcedVersion = ServersExt.getInstance().getForcedProtocol(addressField);
             if (forcedVersion != ConnectionMode.AUTO.getValue()) {
                 ConnectionInfo.protocolVersion = forcedVersion;
-                LOGGER.info("Protocol version forced to " + ConnectionInfo.protocolVersion + " (" + ConnectionMode.byValue(forcedVersion).getName() + ")");
+                LOGGER.info("Protocol version forced to " + ConnectionInfo.protocolVersion + " ("
+                        + ConnectionMode.byValue(forcedVersion).getName() + ")");
                 return true;
             }
         }
 
-        Screen screen = MinecraftClient.getInstance().currentScreen;
+        MinecraftClient client = MinecraftClient.getInstance();
+        Screen screen = client.currentScreen;
         if (!(screen instanceof ConnectScreen))
             return true;
         IConnectScreen connectScreen = (IConnectScreen) screen;
@@ -65,8 +71,9 @@ public class ConnectionHandler {
         GetProtocolPacketListener listener = new GetProtocolPacketListener(connection);
         connection.setPacketListener(listener);
 
-        HandshakeC2SPacket handshake  = new HandshakeC2SPacket(serverAddress.getAddress(), serverAddress.getPort(), NetworkState.STATUS);
-        //noinspection ConstantConditions
+        HandshakeC2SPacket handshake = new HandshakeC2SPacket(serverAddress.getAddress(), serverAddress.getPort(),
+                NetworkState.STATUS);
+        // noinspection ConstantConditions
         ((HandshakePacketAccessor) handshake).setProtocolVersion(-1);
         connection.send(handshake);
         connection.send(new QueryRequestC2SPacket());
@@ -84,7 +91,8 @@ public class ConnectionHandler {
         }
 
         if (listener.hasFailed()) {
-            MinecraftClient.getInstance().execute(() -> MinecraftClient.getInstance().setScreen(new DisconnectedScreen(connectScreen.getParent(), ScreenTexts.CONNECT_FAILED, new LiteralText("Failed to request server protocol version"))));
+            client.execute(() -> client.setScreen(new DisconnectedScreen(connectScreen.getParent(),
+                    ScreenTexts.CONNECT_FAILED, new LiteralText("Failed to request server protocol version"))));
         }
 
         connectScreen.multiconnect_setVersionRequestConnection(null);
@@ -95,11 +103,13 @@ public class ConnectionHandler {
 
         int protocol = listener.getProtocol();
         if (ConnectionMode.isSupportedProtocol(protocol)) {
-            LOGGER.info("Discovered server protocol: " + protocol + " (" + ConnectionMode.byValue(protocol).getName() + ")");
+            LOGGER.info("Discovered server protocol: " + protocol + " (" + ConnectionMode.byValue(protocol).getName()
+                    + ")");
             ConnectionInfo.protocolVersion = protocol;
         } else {
-            LOGGER.info("Discovered server protocol: " + protocol + " (unsupported), " +
-                    "falling back to " + SharedConstants.getGameVersion().getProtocolVersion() + " (" + SharedConstants.getGameVersion().getName() + ")");
+            LOGGER.info("Discovered server protocol: " + protocol + " (unsupported), " + "falling back to "
+                    + SharedConstants.getGameVersion().getProtocolVersion() + " ("
+                    + SharedConstants.getGameVersion().getName() + ")");
             ConnectionInfo.protocolVersion = SharedConstants.getGameVersion().getProtocolVersion();
         }
 

@@ -1,5 +1,15 @@
 package net.earthcomputer.multiconnect.protocols.v1_15_2;
 
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
 import net.earthcomputer.multiconnect.api.Protocols;
 import net.earthcomputer.multiconnect.api.ThreadSafe;
 import net.earthcomputer.multiconnect.impl.Utils;
@@ -94,24 +104,19 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
 import net.minecraft.world.dimension.DimensionType;
 
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-
 public class Protocol_1_15_2 extends Protocol_1_16 {
 
-    private static final TrackedData<Optional<UUID>> OLD_PROJECTILE_OWNER = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.OPTIONAL_UUID);
-    private static final TrackedData<Byte> OLD_TAMEABLE_FLAGS = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.BYTE);
+    private static final MinecraftClient client = MinecraftClient.getInstance();
+
+    private static final TrackedData<Optional<UUID>> OLD_PROJECTILE_OWNER = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.OPTIONAL_UUID);
+    private static final TrackedData<Byte> OLD_TAMEABLE_FLAGS = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.BYTE);
 
     public static void registerTranslators() {
         ProtocolRegistry.registerInboundTranslator(ChunkData.class, buf -> {
-            BitSet verticalStripBitmask = ChunkDataTranslator.current().getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
+            BitSet verticalStripBitmask = ChunkDataTranslator.current()
+                    .getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
             buf.enablePassthroughMode();
             for (int sectionY = 0; sectionY < 16; sectionY++) {
                 if (verticalStripBitmask.get(sectionY)) {
@@ -124,7 +129,8 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
                     } else {
                         buf.disablePassthroughMode();
                         long[] oldData = buf.readLongArray(new long[paletteSize * 64]);
-                        buf.pendingRead(long[].class, BitStorageAlignFix.resizePackedIntArray(4096, paletteSize, oldData));
+                        buf.pendingRead(long[].class,
+                                BitStorageAlignFix.resizePackedIntArray(4096, paletteSize, oldData));
                         buf.enablePassthroughMode();
                     }
                 }
@@ -147,7 +153,8 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
                 for (String key : heightmaps.getKeys()) {
                     NbtElement nbt = heightmaps.get(key);
                     if (nbt instanceof NbtLongArray nbtLongArray) {
-                        heightmaps.putLongArray(key, BitStorageAlignFix.resizePackedIntArray(256, 9, nbtLongArray.getLongArray()));
+                        heightmaps.putLongArray(key,
+                                BitStorageAlignFix.resizePackedIntArray(256, 9, nbtLongArray.getLongArray()));
                     }
                 }
             }
@@ -204,7 +211,8 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
             buf.disablePassthroughMode();
             for (int i = 0; i < count; i++) {
                 String oldId = buf.readString(64);
-                String newId = RenameItemStackAttributesFixAccessor.getRenames().getOrDefault(oldId, oldId).toLowerCase();
+                String newId = RenameItemStackAttributesFixAccessor.getRenames().getOrDefault(oldId, oldId)
+                        .toLowerCase();
                 buf.pendingRead(Identifier.class, new Identifier(newId));
                 buf.enablePassthroughMode();
                 buf.readDouble(); // base value
@@ -227,7 +235,7 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
             buf.readLong(); // sha256 seed
             buf.readUnsignedByte(); // game mode
             buf.disablePassthroughMode();
-            var interactionManager = MinecraftClient.getInstance().interactionManager;
+            var interactionManager = Protocol_1_15_2.client.interactionManager;
             byte previousGameMode;
             if (interactionManager != null && interactionManager.getPreviousGameMode() != null) {
                 previousGameMode = (byte) interactionManager.getPreviousGameMode().getId();
@@ -261,7 +269,7 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
             buf.enablePassthroughMode();
             buf.readVarInt(); // entity
             buf.disablePassthroughMode();
-            buf.pendingRead(Byte.class, (byte)buf.readEnumConstant(EquipmentSlot.class).ordinal()); // slot
+            buf.pendingRead(Byte.class, (byte) buf.readEnumConstant(EquipmentSlot.class).ordinal()); // slot
             buf.applyPendingReads();
         });
         ProtocolRegistry.registerInboundTranslator(ItemStack.class, new InboundTranslator<>() {
@@ -301,14 +309,15 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
                     buf.passthroughWrite(Float.class); // hit y
                     buf.passthroughWrite(Float.class); // hit z
                 }
-                if (type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT || type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT_AT) {
+                if (type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT
+                        || type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT_AT) {
                     buf.passthroughWrite(Hand.class); // hand
                 }
                 buf.skipWrite(Boolean.class); // sneaking
             });
         });
         ProtocolRegistry.registerOutboundTranslator(UpdatePlayerAbilitiesC2SPacket.class, buf -> {
-            PlayerEntity player = MinecraftClient.getInstance().player;
+            PlayerEntity player = Protocol_1_15_2.client.player;
             if (player != null) {
                 Supplier<Byte> flags = buf.skipWrite(Byte.class);
                 buf.pendingWrite(Byte.class, () -> {
@@ -360,25 +369,30 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
             }
         });
 
-        BlockConnections.registerConnector(Protocols.V1_15_2, new SimpleInPlaceConnector(Blocks.REDSTONE_WIRE, (world, pos) -> {
-            BlockState state = world.getBlockState(pos);
-            boolean north = state.get(Properties.NORTH_WIRE_CONNECTION) != WireConnection.NONE;
-            boolean south = state.get(Properties.SOUTH_WIRE_CONNECTION) != WireConnection.NONE;
-            boolean west = state.get(Properties.WEST_WIRE_CONNECTION) != WireConnection.NONE;
-            boolean east = state.get(Properties.EAST_WIRE_CONNECTION) != WireConnection.NONE;
-            if (north && !south && !west && !east) state = state.with(Properties.SOUTH_WIRE_CONNECTION, WireConnection.SIDE);
-            if (!north && south && !west && !east) state = state.with(Properties.NORTH_WIRE_CONNECTION, WireConnection.SIDE);
-            if (!north && !south && west && !east) state = state.with(Properties.EAST_WIRE_CONNECTION, WireConnection.SIDE);
-            if (!north && !south && !west && east) state = state.with(Properties.WEST_WIRE_CONNECTION, WireConnection.SIDE);
-            world.setBlockState(pos, state);
-        }));
+        BlockConnections.registerConnector(Protocols.V1_15_2,
+                new SimpleInPlaceConnector(Blocks.REDSTONE_WIRE, (world, pos) -> {
+                    BlockState state = world.getBlockState(pos);
+                    boolean north = state.get(Properties.NORTH_WIRE_CONNECTION) != WireConnection.NONE;
+                    boolean south = state.get(Properties.SOUTH_WIRE_CONNECTION) != WireConnection.NONE;
+                    boolean west = state.get(Properties.WEST_WIRE_CONNECTION) != WireConnection.NONE;
+                    boolean east = state.get(Properties.EAST_WIRE_CONNECTION) != WireConnection.NONE;
+                    if (north && !south && !west && !east)
+                        state = state.with(Properties.SOUTH_WIRE_CONNECTION, WireConnection.SIDE);
+                    if (!north && south && !west && !east)
+                        state = state.with(Properties.NORTH_WIRE_CONNECTION, WireConnection.SIDE);
+                    if (!north && !south && west && !east)
+                        state = state.with(Properties.EAST_WIRE_CONNECTION, WireConnection.SIDE);
+                    if (!north && !south && !west && east)
+                        state = state.with(Properties.WEST_WIRE_CONNECTION, WireConnection.SIDE);
+                    world.setBlockState(pos, state);
+                }));
     }
 
     private static Identifier dimensionIdToName(int dimensionId) {
         return switch (dimensionId) {
-            case -1 -> DimensionType.THE_NETHER_REGISTRY_KEY.getValue();
-            case 1 -> DimensionType.THE_END_REGISTRY_KEY.getValue();
-            default -> DimensionType.OVERWORLD_REGISTRY_KEY.getValue();
+        case -1 -> DimensionType.THE_NETHER_REGISTRY_KEY.getValue();
+        case 1 -> DimensionType.THE_END_REGISTRY_KEY.getValue();
+        default -> DimensionType.OVERWORLD_REGISTRY_KEY.getValue();
         };
     }
 
@@ -418,8 +432,10 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
         remove(packets, PlayerSpawnPositionS2CPacket.class);
-        insertAfter(packets, ScoreboardPlayerUpdateS2CPacket.class, PacketInfo.of(PlayerSpawnPositionS2CPacket.class, PlayerSpawnPositionS2CPacket::new));
-        insertAfter(packets, ExperienceOrbSpawnS2CPacket.class, PacketInfo.of(EntitySpawnGlobalS2CPacket_1_15_2.class, EntitySpawnGlobalS2CPacket_1_15_2::new));
+        insertAfter(packets, ScoreboardPlayerUpdateS2CPacket.class,
+                PacketInfo.of(PlayerSpawnPositionS2CPacket.class, PlayerSpawnPositionS2CPacket::new));
+        insertAfter(packets, ExperienceOrbSpawnS2CPacket.class,
+                PacketInfo.of(EntitySpawnGlobalS2CPacket_1_15_2.class, EntitySpawnGlobalS2CPacket_1_15_2::new));
         return packets;
     }
 
@@ -551,7 +567,8 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
         registry.unregister(Items.MUSIC_DISC_PIGSTEP);
         registry.unregister(Items.PIGLIN_BANNER_PATTERN);
         registry.unregister(Items.ZOMBIFIED_PIGLIN_SPAWN_EGG);
-        insertAfter(registry, Items.ZOMBIE_HORSE_SPAWN_EGG, Items.ZOMBIFIED_PIGLIN_SPAWN_EGG, "zombie_pigman_spawn_egg");
+        insertAfter(registry, Items.ZOMBIE_HORSE_SPAWN_EGG, Items.ZOMBIFIED_PIGLIN_SPAWN_EGG,
+                "zombie_pigman_spawn_egg");
     }
 
     private void mutateEntityTypeRegistry(ISimpleRegistry<EntityType<?>> registry) {
@@ -614,11 +631,14 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
 
     private void mutateSoundEventRegistry(ISimpleRegistry<SoundEvent> registry) {
         registry.unregister(SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE);
-        insertAfter(registry, SoundEvents.ITEM_BOOK_PUT, SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE, "entity.fishing_bobber.retrieve");
+        insertAfter(registry, SoundEvents.ITEM_BOOK_PUT, SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE,
+                "entity.fishing_bobber.retrieve");
         registry.unregister(SoundEvents.ENTITY_FISHING_BOBBER_SPLASH);
-        insertAfter(registry, SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE, SoundEvents.ENTITY_FISHING_BOBBER_SPLASH, "entity.fishing_bobber.splash");
+        insertAfter(registry, SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE, SoundEvents.ENTITY_FISHING_BOBBER_SPLASH,
+                "entity.fishing_bobber.splash");
         registry.unregister(SoundEvents.ENTITY_FISHING_BOBBER_THROW);
-        insertAfter(registry, SoundEvents.ENTITY_FISHING_BOBBER_SPLASH, SoundEvents.ENTITY_FISHING_BOBBER_THROW, "entity.fishing_bobber.throw");
+        insertAfter(registry, SoundEvents.ENTITY_FISHING_BOBBER_SPLASH, SoundEvents.ENTITY_FISHING_BOBBER_THROW,
+                "entity.fishing_bobber.throw");
 
         registry.unregister(SoundEvents.BLOCK_WOOL_BREAK);
         insertAfter(registry, SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT, SoundEvents.BLOCK_WOOL_BREAK, "block.wool.break");
@@ -634,48 +654,65 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
         registry.unregister(SoundEvents.BLOCK_WET_GRASS_BREAK);
         insertAfter(registry, SoundEvents.BLOCK_GRASS_STEP, SoundEvents.BLOCK_WET_GRASS_BREAK, "block.wet_grass.break");
         registry.unregister(SoundEvents.BLOCK_WET_GRASS_FALL);
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_BREAK, SoundEvents.BLOCK_WET_GRASS_FALL, "block.wet_grass.fall");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_BREAK, SoundEvents.BLOCK_WET_GRASS_FALL,
+                "block.wet_grass.fall");
         registry.unregister(SoundEvents.BLOCK_WET_GRASS_HIT);
         insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_FALL, SoundEvents.BLOCK_WET_GRASS_HIT, "block.wet_grass.hit");
         registry.unregister(SoundEvents.BLOCK_WET_GRASS_PLACE);
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_HIT, SoundEvents.BLOCK_WET_GRASS_PLACE, "block.wet_grass.place");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_HIT, SoundEvents.BLOCK_WET_GRASS_PLACE,
+                "block.wet_grass.place");
         registry.unregister(SoundEvents.BLOCK_WET_GRASS_STEP);
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_PLACE, SoundEvents.BLOCK_WET_GRASS_STEP, "block.wet_grass.step");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_PLACE, SoundEvents.BLOCK_WET_GRASS_STEP,
+                "block.wet_grass.step");
 
         registry.unregister(SoundEvents.BLOCK_CORAL_BLOCK_BREAK);
-        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_STEP, SoundEvents.BLOCK_CORAL_BLOCK_BREAK, "block.coral_block.break");
+        insertAfter(registry, SoundEvents.BLOCK_WET_GRASS_STEP, SoundEvents.BLOCK_CORAL_BLOCK_BREAK,
+                "block.coral_block.break");
         registry.unregister(SoundEvents.BLOCK_CORAL_BLOCK_FALL);
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_BREAK, SoundEvents.BLOCK_CORAL_BLOCK_FALL, "block.coral_block.fall");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_BREAK, SoundEvents.BLOCK_CORAL_BLOCK_FALL,
+                "block.coral_block.fall");
         registry.unregister(SoundEvents.BLOCK_CORAL_BLOCK_HIT);
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_FALL, SoundEvents.BLOCK_CORAL_BLOCK_HIT, "block.coral_block.hit");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_FALL, SoundEvents.BLOCK_CORAL_BLOCK_HIT,
+                "block.coral_block.hit");
         registry.unregister(SoundEvents.BLOCK_CORAL_BLOCK_PLACE);
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_HIT, SoundEvents.BLOCK_CORAL_BLOCK_PLACE, "block.coral_block.place");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_HIT, SoundEvents.BLOCK_CORAL_BLOCK_PLACE,
+                "block.coral_block.place");
         registry.unregister(SoundEvents.BLOCK_CORAL_BLOCK_STEP);
-        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_PLACE, SoundEvents.BLOCK_CORAL_BLOCK_STEP, "block.coral_block.step");
+        insertAfter(registry, SoundEvents.BLOCK_CORAL_BLOCK_PLACE, SoundEvents.BLOCK_CORAL_BLOCK_STEP,
+                "block.coral_block.step");
 
         registry.unregister(SoundEvents.ENTITY_RAVAGER_AMBIENT);
-        insertAfter(registry, SoundEvents.ENTITY_HUSK_STEP, SoundEvents.ENTITY_RAVAGER_AMBIENT, "entity.ravager.ambient");
+        insertAfter(registry, SoundEvents.ENTITY_HUSK_STEP, SoundEvents.ENTITY_RAVAGER_AMBIENT,
+                "entity.ravager.ambient");
         registry.unregister(SoundEvents.ENTITY_RAVAGER_ATTACK);
-        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_AMBIENT, SoundEvents.ENTITY_RAVAGER_ATTACK, "entity.ravager.attack");
+        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_AMBIENT, SoundEvents.ENTITY_RAVAGER_ATTACK,
+                "entity.ravager.attack");
         registry.unregister(SoundEvents.ENTITY_RAVAGER_CELEBRATE);
-        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_ATTACK, SoundEvents.ENTITY_RAVAGER_CELEBRATE, "entity.ravager.celebrate");
+        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_ATTACK, SoundEvents.ENTITY_RAVAGER_CELEBRATE,
+                "entity.ravager.celebrate");
         registry.unregister(SoundEvents.ENTITY_RAVAGER_DEATH);
-        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_CELEBRATE, SoundEvents.ENTITY_RAVAGER_DEATH, "entity.ravager.death");
+        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_CELEBRATE, SoundEvents.ENTITY_RAVAGER_DEATH,
+                "entity.ravager.death");
         registry.unregister(SoundEvents.ENTITY_RAVAGER_HURT);
         insertAfter(registry, SoundEvents.ENTITY_RAVAGER_DEATH, SoundEvents.ENTITY_RAVAGER_HURT, "entity.ravager.hurt");
         registry.unregister(SoundEvents.ENTITY_RAVAGER_STEP);
         insertAfter(registry, SoundEvents.ENTITY_RAVAGER_HURT, SoundEvents.ENTITY_RAVAGER_STEP, "entity.ravager.step");
         registry.unregister(SoundEvents.ENTITY_RAVAGER_STUNNED);
-        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_STEP, SoundEvents.ENTITY_RAVAGER_STUNNED, "entity.ravager.stunned");
+        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_STEP, SoundEvents.ENTITY_RAVAGER_STUNNED,
+                "entity.ravager.stunned");
         registry.unregister(SoundEvents.ENTITY_RAVAGER_ROAR);
-        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_STUNNED, SoundEvents.ENTITY_RAVAGER_ROAR, "entity.ravager.roar");
+        insertAfter(registry, SoundEvents.ENTITY_RAVAGER_STUNNED, SoundEvents.ENTITY_RAVAGER_ROAR,
+                "entity.ravager.roar");
 
         registry.unregister(SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL);
-        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_STEP, SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL, "entity.magma_cube.death_small");
+        insertAfter(registry, SoundEvents.BLOCK_SLIME_BLOCK_STEP, SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL,
+                "entity.magma_cube.death_small");
         registry.unregister(SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL);
-        insertAfter(registry, SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL, SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL, "entity.magma_cube.hurt_small");
+        insertAfter(registry, SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL, SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL,
+                "entity.magma_cube.hurt_small");
         registry.unregister(SoundEvents.ENTITY_MAGMA_CUBE_SQUISH_SMALL);
-        insertAfter(registry, SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL, SoundEvents.ENTITY_MAGMA_CUBE_SQUISH_SMALL, "entity.magma_cube.squish_small");
+        insertAfter(registry, SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL, SoundEvents.ENTITY_MAGMA_CUBE_SQUISH_SMALL,
+                "entity.magma_cube.squish_small");
 
         registry.unregister(SoundEvents.MUSIC_DISC_11);
         insertAfter(registry, SoundEvents.EVENT_RAID_HORN, SoundEvents.MUSIC_DISC_11, "music_disc.11");
@@ -916,10 +953,12 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
     @Override
     protected Comparator<BlockState> getBlockStateOrder(Block block) {
         if (block == Blocks.JIGSAW) {
-            return orderBy(state -> state.get(JigsawBlock.ORIENTATION).getFacing(),
-                    Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP, Direction.DOWN);
+            return orderBy(state -> state.get(JigsawBlock.ORIENTATION).getFacing(), Direction.NORTH, Direction.EAST,
+                    Direction.SOUTH, Direction.WEST, Direction.UP, Direction.DOWN);
         } else if (block instanceof WallBlock) {
-            return this.<BlockState, WallShape>orderBy(state -> state.get(WallBlock.EAST_SHAPE), WallShape.LOW, WallShape.NONE)
+            return this
+                    .<BlockState, WallShape>orderBy(state -> state.get(WallBlock.EAST_SHAPE), WallShape.LOW,
+                            WallShape.NONE)
                     .thenComparing(orderBy(state -> state.get(WallBlock.NORTH_SHAPE), WallShape.LOW, WallShape.NONE))
                     .thenComparing(orderBy(state -> state.get(WallBlock.SOUTH_SHAPE), WallShape.LOW, WallShape.NONE))
                     .thenComparing(orderBy(state -> state.get(WallBlock.UP), true, false))
@@ -938,8 +977,7 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
                 return false;
             }
         }
-        if (state.getBlock() instanceof WallBlock
-                && (state.get(WallBlock.EAST_SHAPE) == WallShape.TALL
+        if (state.getBlock() instanceof WallBlock && (state.get(WallBlock.EAST_SHAPE) == WallShape.TALL
                 || state.get(WallBlock.NORTH_SHAPE) == WallShape.TALL
                 || state.get(WallBlock.SOUTH_SHAPE) == WallShape.TALL
                 || state.get(WallBlock.WEST_SHAPE) == WallShape.TALL))
@@ -960,7 +998,8 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
         tags.add(BlockTags.FIRE, Blocks.FIRE);
         tags.add(BlockTags.NYLIUM);
         tags.add(BlockTags.WART_BLOCKS);
-        tags.add(BlockTags.BEACON_BASE_BLOCKS, Blocks.EMERALD_BLOCK, Blocks.DIAMOND_BLOCK, Blocks.GOLD_BLOCK, Blocks.IRON_BLOCK);
+        tags.add(BlockTags.BEACON_BASE_BLOCKS, Blocks.EMERALD_BLOCK, Blocks.DIAMOND_BLOCK, Blocks.GOLD_BLOCK,
+                Blocks.IRON_BLOCK);
         tags.add(BlockTags.SOUL_SPEED_BLOCKS);
         tags.add(BlockTags.WALL_POST_OVERRIDE, Blocks.REDSTONE_TORCH, Blocks.TRIPWIRE);
         tags.addTag(BlockTags.WALL_POST_OVERRIDE, BlockTags.SIGNS);
@@ -976,7 +1015,8 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
         tags.add(BlockTags.CAMPFIRES, Blocks.CAMPFIRE);
         tags.add(BlockTags.GUARDED_BY_PIGLINS);
         tags.addTag(BlockTags.PREVENT_MOB_SPAWNING_INSIDE, BlockTags.RAILS);
-        tags.add(BlockTags.FENCE_GATES, Blocks.ACACIA_FENCE_GATE, Blocks.BIRCH_FENCE_GATE, Blocks.DARK_OAK_FENCE_GATE, Blocks.JUNGLE_FENCE_GATE, Blocks.OAK_FENCE, Blocks.SPRUCE_FENCE_GATE);
+        tags.add(BlockTags.FENCE_GATES, Blocks.ACACIA_FENCE_GATE, Blocks.BIRCH_FENCE_GATE, Blocks.DARK_OAK_FENCE_GATE,
+                Blocks.JUNGLE_FENCE_GATE, Blocks.OAK_FENCE, Blocks.SPRUCE_FENCE_GATE);
         tags.addTag(BlockTags.UNSTABLE_BOTTOM_CENTER, BlockTags.FENCE_GATES);
         tags.add(BlockTags.INFINIBURN_OVERWORLD, Blocks.NETHERRACK, Blocks.MAGMA_BLOCK);
         tags.addTag(BlockTags.INFINIBURN_NETHER, BlockTags.INFINIBURN_OVERWORLD);
@@ -1008,21 +1048,17 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
     @Override
     public void addExtraEntityTags(TagRegistry<EntityType<?>> tags) {
         tags.addTag(EntityTypeTags.IMPACT_PROJECTILES, EntityTypeTags.ARROWS);
-        tags.add(EntityTypeTags.IMPACT_PROJECTILES,
-                EntityType.SNOWBALL,
-                EntityType.FIREBALL,
-                EntityType.SMALL_FIREBALL,
-                EntityType.EGG,
-                EntityType.TRIDENT,
-                EntityType.DRAGON_FIREBALL,
-                EntityType.WITHER_SKULL);
+        tags.add(EntityTypeTags.IMPACT_PROJECTILES, EntityType.SNOWBALL, EntityType.FIREBALL, EntityType.SMALL_FIREBALL,
+                EntityType.EGG, EntityType.TRIDENT, EntityType.DRAGON_FIREBALL, EntityType.WITHER_SKULL);
         super.addExtraEntityTags(tags);
     }
 
     @Override
     public void preAcceptEntityData(Class<? extends Entity> clazz, TrackedData<?> data) {
         if (clazz == PersistentProjectileEntity.class && data == ProjectileEntityAccessor.getPierceLevel()) {
-            DataTrackerManager.registerOldTrackedData(PersistentProjectileEntity.class, OLD_PROJECTILE_OWNER, Optional.empty(), (entity, val) -> {});
+            DataTrackerManager.registerOldTrackedData(PersistentProjectileEntity.class, OLD_PROJECTILE_OWNER,
+                    Optional.empty(), (entity, val) -> {
+                    });
         }
         super.preAcceptEntityData(clazz, data);
     }
@@ -1030,14 +1066,15 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
     @Override
     public boolean acceptEntityData(Class<? extends Entity> clazz, TrackedData<?> data) {
         if (clazz == TameableEntity.class && data == TameableEntityAccessor.getTameableFlags()) {
-            DataTrackerManager.registerOldTrackedData(TameableEntity.class, OLD_TAMEABLE_FLAGS, (byte)0, (entity, val) -> {
-                byte newVal = val;
-                if (entity instanceof WolfEntity wolf) {
-                    wolf.setAngerTime((newVal & 2) != 0 ? 400 : 0);
-                    newVal = (byte) (newVal & ~2);
-                }
-                entity.getDataTracker().set(TameableEntityAccessor.getTameableFlags(), newVal);
-            });
+            DataTrackerManager.registerOldTrackedData(TameableEntity.class, OLD_TAMEABLE_FLAGS, (byte) 0,
+                    (entity, val) -> {
+                        byte newVal = val;
+                        if (entity instanceof WolfEntity wolf) {
+                            wolf.setAngerTime((newVal & 2) != 0 ? 400 : 0);
+                            newVal = (byte) (newVal & ~2);
+                        }
+                        entity.getDataTracker().set(TameableEntityAccessor.getTameableFlags(), newVal);
+                    });
             return false;
         }
         if (clazz == WolfEntity.class && data == WolfEntityAccessor.getAngerTime()) {
@@ -1049,7 +1086,8 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
     @Override
     public float getBlockHardness(BlockState state, float hardness) {
         hardness = super.getBlockHardness(state, hardness);
-        if (state.getBlock() == Blocks.PISTON || state.getBlock() == Blocks.STICKY_PISTON || state.getBlock() == Blocks.PISTON_HEAD) {
+        if (state.getBlock() == Blocks.PISTON || state.getBlock() == Blocks.STICKY_PISTON
+                || state.getBlock() == Blocks.PISTON_HEAD) {
             hardness = 0.5f;
         }
         return hardness;

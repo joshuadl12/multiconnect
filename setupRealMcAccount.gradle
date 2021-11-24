@@ -41,7 +41,6 @@ task setupRealMcAccount {
             @Override
             void refreshFeaturedPacksPanel() {
             }
-            @Override
             void refreshPacksPanel() {
             }
             @Override

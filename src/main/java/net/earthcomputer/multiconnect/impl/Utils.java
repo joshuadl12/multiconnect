@@ -111,7 +111,8 @@ public class Utils {
         return Comparator.comparing(val -> indexes.getOrDefault(mapper.apply(val), absent));
     }
 
-    public static void insertAfter(List<PacketInfo<?>> list, Class<? extends Packet<?>> element, PacketInfo<?> toInsert) {
+    public static void insertAfter(List<PacketInfo<?>> list, Class<? extends Packet<?>> element,
+            PacketInfo<?> toInsert) {
         for (int i = 0; i < list.size(); i++) {
             if (list.get(i).getPacketClass() == element) {
                 list.add(i + 1, toInsert);
@@ -146,7 +147,7 @@ public class Utils {
 
     public static void removeTrackedDataHandler(TrackedDataHandler<?> handler) {
         var biMap = TrackedDataHandlerRegistryAccessor.getDataHandlers();
-        //noinspection unchecked
+        // noinspection unchecked
         var iBiMap = (IInt2ObjectBiMap<TrackedDataHandler<?>>) biMap;
         int id = TrackedDataHandlerRegistry.getId(handler);
         iBiMap.multiconnect_remove(handler);
@@ -157,21 +158,26 @@ public class Utils {
         }
     }
 
-    public static void copyBlocks(TagRegistry<Item> tags, TagRegistry<Block> blockTags, Tag.Identified<Item> tag, Tag.Identified<Block> blockTag) {
+    public static void copyBlocks(TagRegistry<Item> tags, TagRegistry<Block> blockTags, Tag.Identified<Item> tag,
+            Tag.Identified<Block> blockTag) {
         tags.add(tag, Collections2.transform(blockTags.get(blockTag.getId()), Block::asItem));
     }
 
     @SuppressWarnings("unchecked")
     public static <T> int getUnmodifiedId(Registry<T> registry, T value) {
-        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES.get(registry);
-        if (defaultRegistries == null) return registry.getRawId(value);
+        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES
+                .get(registry);
+        if (defaultRegistries == null)
+            return registry.getRawId(value);
         return defaultRegistries.defaultEntryToRawId.getInt(value);
     }
 
     @SuppressWarnings("unchecked")
     public static <T> Identifier getUnmodifiedName(Registry<T> registry, T value) {
-        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES.get(registry);
-        if (defaultRegistries == null) return registry.getId(value);
+        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES
+                .get(registry);
+        if (defaultRegistries == null)
+            return registry.getId(value);
         return defaultRegistries.defaultIdToEntry.inverse().get(value);
     }
 
@@ -196,8 +202,9 @@ public class Utils {
         if (registry.getIdToEntry().containsValue(value))
             return;
 
-        //noinspection SuspiciousMethodCalls
-        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES.get(registry);
+        // noinspection SuspiciousMethodCalls
+        DefaultRegistries<T> defaultRegistries = (DefaultRegistries<T>) DefaultRegistries.DEFAULT_REGISTRIES
+                .get(registry);
         T prevValue = null;
         for (int id = defaultRegistries.defaultEntryToRawId.getInt(value) - 1; id >= 0; id--) {
             T val = defaultRegistries.defaultRawIdToEntry.get(id);
@@ -207,14 +214,17 @@ public class Utils {
             }
         }
 
-        insertAfter(registry, prevValue, value, defaultRegistries.defaultIdToEntry.inverse().get(value).toString(), inPlace);
+        insertAfter(registry, prevValue, value, defaultRegistries.defaultIdToEntry.inverse().get(value).toString(),
+                inPlace);
     }
 
     @SuppressWarnings("unchecked")
     @ThreadSafe
-    public static <T, R extends Registry<T>> void addRegistry(DynamicRegistryManager.Impl registries, RegistryKey<R> registryKey) {
-        //noinspection ConstantConditions
-        var registryMap = (Map<RegistryKey<? extends Registry<?>>, SimpleRegistry<?>>) ((DynamicRegistryManagerImplAccessor) (Object) registries).getRegistries();
+    public static <T, R extends Registry<T>> void addRegistry(DynamicRegistryManager.Impl registries,
+            RegistryKey<R> registryKey) {
+        // noinspection ConstantConditions
+        var registryMap = (Map<RegistryKey<? extends Registry<?>>, SimpleRegistry<?>>) ((DynamicRegistryManagerImplAccessor) (Object) registries)
+                .getRegistries();
 
         if (registryMap.containsKey(registryKey)) {
             return;
@@ -224,8 +234,8 @@ public class Utils {
         if (registryKey == Registry.DIMENSION_TYPE_KEY) {
             DimensionType.addRegistryDefaults(registries);
         } else {
-            SimpleRegistry<T> builtinRegistry =
-                    (SimpleRegistry<T>) ((Registry<R>) BuiltinRegistries.REGISTRIES).get(registryKey);
+            SimpleRegistry<T> builtinRegistry = (SimpleRegistry<T>) ((Registry<R>) BuiltinRegistries.REGISTRIES)
+                    .get(registryKey);
             assert builtinRegistry != null;
             for (var entry : builtinRegistry.getEntries()) {
                 registry.set(builtinRegistry.getRawId(entry.getValue()), entry.getKey(), entry.getValue(),
@@ -235,46 +245,44 @@ public class Utils {
     }
 
     @ThreadSafe
-    public static <T> void translateDynamicRegistries(TransformerByteBuf buf, Codec<T> oldCodec, Predicate<T> allowablePredicate) {
-        translateExperimentalCodec(buf, oldCodec, allowablePredicate, DynamicRegistryManager.Impl.CODEC, thing -> createMutableDynamicRegistryManager());
+    public static <T> void translateDynamicRegistries(TransformerByteBuf buf, Codec<T> oldCodec,
+            Predicate<T> allowablePredicate) {
+        translateExperimentalCodec(buf, oldCodec, allowablePredicate, DynamicRegistryManager.Impl.CODEC,
+                thing -> createMutableDynamicRegistryManager());
     }
 
     @ThreadSafe
     public static DynamicRegistryManager.Impl createMutableDynamicRegistryManager() {
         var registryManager = DynamicRegistryManager.create();
-        //noinspection ConstantConditions
+        // noinspection ConstantConditions
         var registryManagerAccessor = (DynamicRegistryManagerImplAccessor) (Object) registryManager;
         registryManagerAccessor.setRegistries(new HashMap<>()); // make them mutable
         RegistryMutator mutator = new RegistryMutator();
         ConnectionInfo.protocol.mutateDynamicRegistries(mutator, registryManager);
-        // mutator.runMutations(registryManagerAccessor.getRegistries().values()); // TODO: just rewrite this whole registry system my fucking god
+        // mutator.runMutations(registryManagerAccessor.getRegistries().values()); //
+        // TODO: just rewrite this whole registry system my fucking god
         return registryManager;
     }
 
     private static final Map<Identifier, DimensionType> DIMENSION_TYPES_BY_ID = ImmutableMap.of(
-            DimensionType.OVERWORLD_ID, DimensionTypeAccessor.getOverworld(),
-            DimensionType.THE_NETHER_ID, DimensionTypeAccessor.getTheNether(),
-            DimensionType.THE_END_ID, DimensionTypeAccessor.getTheEnd()
-    );
+            DimensionType.OVERWORLD_ID, DimensionTypeAccessor.getOverworld(), DimensionType.THE_NETHER_ID,
+            DimensionTypeAccessor.getTheNether(), DimensionType.THE_END_ID, DimensionTypeAccessor.getTheEnd());
 
     @Nullable
     @ThreadSafe
     public static Codecked<Supplier<DimensionType>> translateDimensionType(TransformerByteBuf buf) {
-        return translateExperimentalCodec(
-                buf,
-                Utils.singletonKeyCodec("effects", Identifier.CODEC),
-                DIMENSION_TYPES_BY_ID::containsKey,
-                DimensionType.REGISTRY_CODEC,
-                id -> () -> DIMENSION_TYPES_BY_ID.get(id)
-        );
+        return translateExperimentalCodec(buf, Utils.singletonKeyCodec("effects", Identifier.CODEC),
+                DIMENSION_TYPES_BY_ID::containsKey, DimensionType.REGISTRY_CODEC,
+                id -> () -> DIMENSION_TYPES_BY_ID.get(id));
     }
 
     @SuppressWarnings("unchecked")
     @Nullable
     @ThreadSafe
-    private static <T, U> Codecked<U> translateExperimentalCodec(TransformerByteBuf buf, Codec<T> oldCodec, Predicate<T> allowablePredicate, Codec<U> thingCodec, Function<T, U> thingCreator) {
+    private static <T, U> Codecked<U> translateExperimentalCodec(TransformerByteBuf buf, Codec<T> oldCodec,
+            Predicate<T> allowablePredicate, Codec<U> thingCodec, Function<T, U> thingCreator) {
         // TODO: support actual translation when this format stops being experimental
-        boolean[] hasDecoded = {false};
+        boolean[] hasDecoded = { false };
         T oldThing = buf.decode(oldCodec.xmap(val -> {
             hasDecoded[0] = true;
             return val;
@@ -300,12 +308,15 @@ public class Utils {
     }
 
     /**
-     * Creates a codec which recognizes an object {"key": value} from a codec which recognizes value.
-     * This returned codec extracts value from this object, ignoring all other information
+     * Creates a codec which recognizes an object {"key": value} from a codec which
+     * recognizes value. This returned codec extracts value from this object,
+     * ignoring all other information
      */
     @ThreadSafe
     public static <T> Codec<T> singletonKeyCodec(String key, Codec<T> codec) {
-        return RecordCodecBuilder.<Optional<T>>create(inst -> inst.group(codec.fieldOf(key).forGetter(Optional::get)).apply(inst, Optional::of))
+        return RecordCodecBuilder
+                .<Optional<T>>create(
+                        inst -> inst.group(codec.fieldOf(key).forGetter(Optional::get)).apply(inst, Optional::of))
                 .xmap(Optional::get, Optional::of);
     }
 
@@ -319,14 +330,14 @@ public class Utils {
             LOGGER.info("Failed to encode for cloning");
             return val;
         }
-        //noinspection OptionalGetWithoutIsPresent
+        // noinspection OptionalGetWithoutIsPresent
         DataResult<T> cloneDataResult = codec.parse(NbtOps.INSTANCE, nbtDataResult.result().get());
         if (cloneDataResult.error().isPresent()) {
             LOGGER.info("Failed to decode for cloning");
             return val;
         }
 
-        //noinspection OptionalGetWithoutIsPresent
+        // noinspection OptionalGetWithoutIsPresent
         return cloneDataResult.result().get();
     }
 
@@ -337,23 +348,21 @@ public class Utils {
                 text.append(new LiteralText(" !").formatted(Formatting.RED));
             }
             return text;
-        })
-                .setCategoryLabelExtractor(mode -> {
-                    LiteralText text = new LiteralText(mode.getMajorReleaseName());
-                    if (mode.isMulticonnectBeta()) {
-                        text.append(new LiteralText(" !").formatted(Formatting.RED));
-                    }
-                    return text;
-                })
-                .setTooltipRenderer((matrices, mode, x, y, isCategory) -> {
-                    if (mode.isMulticonnectBeta()) {
-                        String modeName = isCategory ? mode.getMajorReleaseName() : mode.getName();
-                        screen.renderTooltip(matrices, ImmutableList.of(
-                                new TranslatableText("multiconnect.betaWarning.line1", modeName),
-                                new TranslatableText("multiconnect.betaWarning.line2", modeName)
-                        ), x, y);
-                    }
-                });
+        }).setCategoryLabelExtractor(mode -> {
+            LiteralText text = new LiteralText(mode.getMajorReleaseName());
+            if (mode.isMulticonnectBeta()) {
+                text.append(new LiteralText(" !").formatted(Formatting.RED));
+            }
+            return text;
+        }).setTooltipRenderer((matrices, mode, x, y, isCategory) -> {
+            if (mode.isMulticonnectBeta()) {
+                String modeName = isCategory ? mode.getMajorReleaseName() : mode.getName();
+                screen.renderTooltip(matrices,
+                        ImmutableList.of(new TranslatableText("multiconnect.betaWarning.line1", modeName),
+                                new TranslatableText("multiconnect.betaWarning.line2", modeName)),
+                        x, y);
+            }
+        });
 
         // populate the versions
         for (ConnectionMode mode : ConnectionMode.values()) {
@@ -396,7 +405,8 @@ public class Utils {
     }
 
     @ThreadSafe
-    public static <T extends Packet<?>> T createPacket(Class<T> packetClass, Function<PacketByteBuf, T> constructor, int protocolVersion, InboundTranslator<T> creator) {
+    public static <T extends Packet<?>> T createPacket(Class<T> packetClass, Function<PacketByteBuf, T> constructor,
+            int protocolVersion, InboundTranslator<T> creator) {
         TypedMap userData = new TypedMap();
         TransformerByteBuf buf = new TransformerByteBuf(new EmptyByteBuf(ByteBufAllocator.DEFAULT), null)
                 .readTopLevelType(packetClass, protocolVersion, creator, userData);
@@ -409,6 +419,7 @@ public class Utils {
 
     private static final ScheduledExecutorService AUTO_CACHE_CLEAN_EXECUTOR = Executors.newScheduledThreadPool(1);
     private static final Cleaner AUTO_CACHE_CLEANER = Cleaner.create();
+
     public static void autoCleanUp(Cache<?, ?> cache, long time, TimeUnit timeUnit) {
         WeakReference<Cache<?, ?>> weakCache = new WeakReference<>(cache);
         ScheduledFuture<?> autoCleanTask = AUTO_CACHE_CLEAN_EXECUTOR.scheduleAtFixedRate(() -> {
@@ -533,16 +544,19 @@ public class Utils {
         }
     }
 
-    public static ChunkDataS2CPacket createEmptyChunkDataPacket(int x, int z, World world, DynamicRegistryManager registryManager) {
+    public static ChunkDataS2CPacket createEmptyChunkDataPacket(int x, int z, World world,
+            DynamicRegistryManager registryManager) {
         Registry<Biome> biomeRegistry = registryManager.get(Registry.BIOME_KEY);
         Biome plainsBiome = biomeRegistry.get(BiomeKeys.PLAINS);
 
-        ChunkDataS2CPacket packet = new ChunkDataS2CPacket(new WorldChunk(world, new ChunkPos(x, z)), world.getLightingProvider(), new BitSet(), new BitSet(), true);
-        //noinspection ConstantConditions
+        ChunkDataS2CPacket packet = new ChunkDataS2CPacket(new WorldChunk(world, new ChunkPos(x, z)),
+                world.getLightingProvider(), new BitSet(), new BitSet(), true);
+        // noinspection ConstantConditions
         IUserDataHolder iPacket = (IUserDataHolder) packet;
         iPacket.multiconnect_setUserData(ChunkDataTranslator.DATA_TRANSLATED_KEY, true);
         iPacket.multiconnect_setUserData(ChunkDataTranslator.DIMENSION_KEY, world.getDimension());
-        iPacket.multiconnect_setUserData(BlockConnections.BLOCKS_NEEDING_UPDATE_KEY, new EnumMap<>(EightWayDirection.class));
+        iPacket.multiconnect_setUserData(BlockConnections.BLOCKS_NEEDING_UPDATE_KEY,
+                new EnumMap<>(EightWayDirection.class));
         Biome[] biomes = new Biome[256];
         Arrays.fill(biomes, plainsBiome);
         iPacket.multiconnect_setUserData(Protocol_1_14_4.BIOME_DATA_KEY, biomes);

@@ -1,16 +1,41 @@
 package net.earthcomputer.multiconnect.mixin.bridge;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
 import net.earthcomputer.multiconnect.api.Protocols;
 import net.earthcomputer.multiconnect.impl.ConnectionInfo;
 import net.earthcomputer.multiconnect.impl.Constants;
 import net.earthcomputer.multiconnect.impl.Utils;
-import net.earthcomputer.multiconnect.protocols.generic.*;
+import net.earthcomputer.multiconnect.protocols.generic.ChunkDataTranslator;
+import net.earthcomputer.multiconnect.protocols.generic.CustomPayloadHandler;
+import net.earthcomputer.multiconnect.protocols.generic.ISimpleRegistry;
+import net.earthcomputer.multiconnect.protocols.generic.IUserDataHolder;
+import net.earthcomputer.multiconnect.protocols.generic.TagRegistry;
 import net.earthcomputer.multiconnect.protocols.generic.blockconnections.BlockConnections;
 import net.earthcomputer.multiconnect.protocols.generic.blockconnections.ChunkConnector;
 import net.earthcomputer.multiconnect.protocols.generic.blockconnections.IBlockConnectableChunk;
@@ -45,7 +70,11 @@ import net.minecraft.network.packet.s2c.play.LightUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.SynchronizeTagsS2CPacket;
 import net.minecraft.screen.ScreenHandler;
-import net.minecraft.tag.*;
+import net.minecraft.tag.RequiredTagList;
+import net.minecraft.tag.RequiredTagListRegistry;
+import net.minecraft.tag.SetTag;
+import net.minecraft.tag.Tag;
+import net.minecraft.tag.TagGroup;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
@@ -61,39 +90,31 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkStatus;
 import net.minecraft.world.chunk.WorldChunk;
 import net.minecraft.world.event.GameEvent;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.spongepowered.asm.mixin.Final;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 @Mixin(value = ClientPlayNetworkHandler.class, priority = -1000)
 public class MixinClientPlayNetworkHandler {
-    @Unique private static final Logger MULTICONNECT_LOGGER = LogManager.getLogger("multiconnect");
+    @Unique
+    private static final Logger MULTICONNECT_LOGGER = LogManager.getLogger("multiconnect");
 
-    @Shadow private ClientWorld world;
-    @Shadow @Final private MinecraftClient client;
-    @Unique private ChunkDataS2CPacket currentChunkPacket;
+    @Shadow
+    private ClientWorld world;
+    @Shadow
+    @Final
+    private MinecraftClient client;
+    @Unique
+    private ChunkDataS2CPacket currentChunkPacket;
 
-    @Unique private final Cache<ChunkPos, List<Packet<ClientPlayPacketListener>>> afterChunkLoadPackets = CacheBuilder.newBuilder()
-            .expireAfterWrite(Constants.PACKET_QUEUE_DROP_TIMEOUT, TimeUnit.SECONDS)
+    @Unique
+    private final Cache<ChunkPos, List<Packet<ClientPlayPacketListener>>> afterChunkLoadPackets = CacheBuilder
+            .newBuilder().expireAfterWrite(Constants.PACKET_QUEUE_DROP_TIMEOUT, TimeUnit.SECONDS)
             .removalListener((RemovalListener<ChunkPos, List<Packet<ClientPlayPacketListener>>>) notification -> {
                 if (notification.wasEvicted()) {
-                    MULTICONNECT_LOGGER.warn("{} packets for chunk {}, {} were dropped due to the chunk not being loaded", notification.getValue().size(), notification.getKey().x, notification.getKey().z);
+                    MULTICONNECT_LOGGER.warn(
+                            "{} packets for chunk {}, {} were dropped due to the chunk not being loaded",
+                            notification.getValue().size(), notification.getKey().x, notification.getKey().z);
                 }
-            })
-            .build();
+            }).build();
+
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onConstruct(CallbackInfo ci) {
         Utils.autoCleanUp(afterChunkLoadPackets, Constants.PACKET_QUEUE_DROP_TIMEOUT, TimeUnit.SECONDS);
@@ -107,7 +128,8 @@ public class MixinClientPlayNetworkHandler {
                 ChunkDataTranslator.submit(packet);
                 ci.cancel();
                 canceled = true;
-            } else if (((IUserDataHolder) packet).multiconnect_getUserData(ChunkDataTranslator.DIMENSION_KEY) != world.getDimension()) {
+            } else if (((IUserDataHolder) packet).multiconnect_getUserData(ChunkDataTranslator.DIMENSION_KEY) != world
+                    .getDimension()) {
                 ci.cancel();
                 canceled = true;
             }
@@ -130,26 +152,23 @@ public class MixinClientPlayNetworkHandler {
     }
 
     @Redirect(method = "loadChunk", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/world/ClientChunkManager;loadChunkFromPacket(IILnet/minecraft/network/PacketByteBuf;Lnet/minecraft/nbt/NbtCompound;Ljava/util/function/Consumer;)Lnet/minecraft/world/chunk/WorldChunk;"))
-    private WorldChunk fixChunk(
-            ClientChunkManager instance,
-            int x,
-            int z,
-            PacketByteBuf buf,
-            NbtCompound nbt,
-            Consumer<net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityVisitor> blockEntityVisitor
-    ) {
+    private WorldChunk fixChunk(ClientChunkManager instance, int x, int z, PacketByteBuf buf, NbtCompound nbt,
+            Consumer<net.minecraft.network.packet.s2c.play.ChunkData.BlockEntityVisitor> blockEntityVisitor) {
         WorldChunk chunk = instance.loadChunkFromPacket(x, z, buf, nbt, blockEntityVisitor);
         if (ConnectionInfo.protocolVersion != SharedConstants.getGameVersion().getProtocolVersion()) {
             if (chunk != null && !Utils.isChunkEmpty(chunk)) {
-                var blocksNeedingUpdate = ((IUserDataHolder) currentChunkPacket).multiconnect_getUserData(BlockConnections.BLOCKS_NEEDING_UPDATE_KEY);
-                ChunkConnector chunkConnector = new ChunkConnector(chunk, ConnectionInfo.protocol.getBlockConnector(), blocksNeedingUpdate);
+                var blocksNeedingUpdate = ((IUserDataHolder) currentChunkPacket)
+                        .multiconnect_getUserData(BlockConnections.BLOCKS_NEEDING_UPDATE_KEY);
+                ChunkConnector chunkConnector = new ChunkConnector(chunk, ConnectionInfo.protocol.getBlockConnector(),
+                        blocksNeedingUpdate);
                 ((IBlockConnectableChunk) chunk).multiconnect_setChunkConnector(chunkConnector);
                 for (Direction side : Direction.Type.HORIZONTAL) {
-                    Chunk neighborChunk = world.getChunk(x + side.getOffsetX(),
-                            z + side.getOffsetZ(), ChunkStatus.FULL, false);
+                    Chunk neighborChunk = world.getChunk(x + side.getOffsetX(), z + side.getOffsetZ(), ChunkStatus.FULL,
+                            false);
                     if (neighborChunk != null) {
                         chunkConnector.onNeighborChunkLoaded(side);
-                        ChunkConnector neighborConnector = ((IBlockConnectableChunk) neighborChunk).multiconnect_getChunkConnector();
+                        ChunkConnector neighborConnector = ((IBlockConnectableChunk) neighborChunk)
+                                .multiconnect_getChunkConnector();
                         if (neighborConnector != null) {
                             neighborConnector.onNeighborChunkLoaded(side.getOpposite());
                         }
@@ -160,7 +179,8 @@ public class MixinClientPlayNetworkHandler {
 
         if (ConnectionInfo.protocolVersion <= Protocols.V1_14_4) {
             if (chunk != null) {
-                Biome[] biomeData = ((IUserDataHolder) currentChunkPacket).multiconnect_getUserData(Protocol_1_14_4.BIOME_DATA_KEY);
+                Biome[] biomeData = ((IUserDataHolder) currentChunkPacket)
+                        .multiconnect_getUserData(Protocol_1_14_4.BIOME_DATA_KEY);
                 if (biomeData != null) {
                     ((IBiomeStorage_1_14_4) chunk).multiconnect_setBiomeArray_1_14_4(biomeData);
                 }
@@ -226,29 +246,32 @@ public class MixinClientPlayNetworkHandler {
     private void onOnGameJoin(GameJoinS2CPacket packet, CallbackInfo ci) {
         var registries = (DynamicRegistryManager.Impl) packet.registryManager();
         assert registries != null;
-        //noinspection ConstantConditions
+        // noinspection ConstantConditions
         var registriesAccessor = (DynamicRegistryManagerImplAccessor) (Object) registries;
         registriesAccessor.setRegistries(new HashMap<>(registriesAccessor.getRegistries())); // make registries mutable
 
         for (var registryKey : DynamicRegistryManagerAccessor.getInfos().keySet()) {
-            if (registryKey != Registry.DIMENSION_TYPE_KEY && DynamicRegistryManagerAccessor.getInfos().get(registryKey).isSynced()) {
+            if (registryKey != Registry.DIMENSION_TYPE_KEY
+                    && DynamicRegistryManagerAccessor.getInfos().get(registryKey).isSynced()) {
                 addMissingValues(getBuiltinRegistry(registryKey), registries);
             }
         }
 
-        registriesAccessor.setRegistries(ImmutableMap.copyOf(registriesAccessor.getRegistries())); // make immutable again (faster)
+        registriesAccessor.setRegistries(ImmutableMap.copyOf(registriesAccessor.getRegistries())); // make immutable
+                                                                                                   // again (faster)
     }
 
     @SuppressWarnings("unchecked")
     @Unique
-    private static <T, R extends Registry<T>> Registry<?> getBuiltinRegistry(RegistryKey<? extends Registry<?>> registryKey) {
+    private static <T, R extends Registry<T>> Registry<?> getBuiltinRegistry(
+            RegistryKey<? extends Registry<?>> registryKey) {
         return ((Registry<R>) BuiltinRegistries.REGISTRIES).get((RegistryKey<R>) registryKey);
     }
 
     @SuppressWarnings("unchecked")
     @Unique
     private static <T> void addMissingValues(Registry<T> builtinRegistry, DynamicRegistryManager.Impl registries) {
-        Registry<T> dynamicRegistry =  registries.get(builtinRegistry.getKey());
+        Registry<T> dynamicRegistry = registries.get(builtinRegistry.getKey());
         ISimpleRegistry<T> iregistry = (ISimpleRegistry<T>) dynamicRegistry;
         iregistry.lockRealEntries();
         for (T val : builtinRegistry) {
@@ -265,8 +288,8 @@ public class MixinClientPlayNetworkHandler {
         var requiredTags = new HashMap<RegistryKey<? extends Registry<?>>, List<Identifier>>();
         RequiredTagListRegistry.forEach(requiredTagList -> {
             var tagWrappers = ((RequiredTagListAccessor<?>) requiredTagList).getTags();
-            List<Identifier> tagIds =
-                    tagWrappers.stream().map(RequiredTagList.TagWrapper::getId).collect(Collectors.toList());
+            List<Identifier> tagIds = tagWrappers.stream().map(RequiredTagList.TagWrapper::getId)
+                    .collect(Collectors.toList());
             requiredTags.put(requiredTagList.getRegistryKey(), tagIds);
         });
         TagRegistry<Block> blockTagRegistry = new TagRegistry<>(Registry.BLOCK);
@@ -290,7 +313,8 @@ public class MixinClientPlayNetworkHandler {
     }
 
     @Unique
-    private static <T> TagGroup<T> setExtraTags(String type, SynchronizeTagsS2CPacket packet, TagRegistry<T> tagRegistry, List<Identifier> requiredTags, Consumer<TagRegistry<T>> tagsAdder) {
+    private static <T> TagGroup<T> setExtraTags(String type, SynchronizeTagsS2CPacket packet,
+            TagRegistry<T> tagRegistry, List<Identifier> requiredTags, Consumer<TagRegistry<T>> tagsAdder) {
         Registry<T> registry = tagRegistry.getRegistry();
         if (packet.getGroups().containsKey(registry.getKey())) {
             TagGroup<T> group = TagGroup.deserialize(packet.getGroups().get(registry.getKey()), registry);
@@ -300,12 +324,14 @@ public class MixinClientPlayNetworkHandler {
         BiMap<Identifier, Tag<T>> tagBiMap = HashBiMap.create(tagRegistry.size());
         tagRegistry.forEach((id, set) -> tagBiMap.put(id, Tag.of(set)));
 
-        // ViaVersion doesn't send all required tags to older clients because they didn't check them. We have to add empty ones to substitute.
+        // ViaVersion doesn't send all required tags to older clients because they
+        // didn't check them. We have to add empty ones to substitute.
         if (ConnectionInfo.protocolVersion <= Protocols.V1_16_1) {
             List<Identifier> missingTagIds = new ArrayList<>(requiredTags);
             missingTagIds.removeAll(tagBiMap.keySet());
             if (!missingTagIds.isEmpty()) {
-                MULTICONNECT_LOGGER.warn("Server didn't send required {} tags, adding empty substitutes for {}", type, missingTagIds);
+                MULTICONNECT_LOGGER.warn("Server didn't send required {} tags, adding empty substitutes for {}", type,
+                        missingTagIds);
                 for (Identifier missingTagId : missingTagIds) {
                     tagBiMap.put(missingTagId, SetTag.empty());
                 }
@@ -321,7 +347,8 @@ public class MixinClientPlayNetworkHandler {
             ci.cancel();
         } else if (ConnectionInfo.protocolVersion != SharedConstants.getGameVersion().getProtocolVersion()
                 && !CustomPayloadHandler.VANILLA_CLIENTBOUND_CHANNELS.contains(packet.getChannel())) {
-            NetworkThreadUtils.forceMainThread(packet, (ClientPlayNetworkHandler) (Object) this, MinecraftClient.getInstance());
+            NetworkThreadUtils.forceMainThread(packet, (ClientPlayNetworkHandler) (Object) this,
+                    MinecraftClient.getInstance());
             CustomPayloadHandler.handleClientboundCustomPayload((ClientPlayNetworkHandler) (Object) this, packet);
             ci.cancel();
         }
@@ -338,7 +365,8 @@ public class MixinClientPlayNetworkHandler {
 
         int slot = ConnectionInfo.protocol.serverSlotIdToClient(screenHandler, packet.getSlot());
         if (slot != packet.getSlot()) {
-            packet = new ScreenHandlerSlotUpdateS2CPacket(packet.getSyncId(), packet.getRevision(), slot, packet.getItemStack());
+            packet = new ScreenHandlerSlotUpdateS2CPacket(packet.getSyncId(), packet.getRevision(), slot,
+                    packet.getItemStack());
         }
 
         return packet;
@@ -365,8 +393,10 @@ public class MixinClientPlayNetworkHandler {
         }
 
         if (modified) {
-            DefaultedList<ItemStack> newContents = DefaultedList.copyOf(ItemStack.EMPTY, newStacks.toArray(ItemStack[]::new));
-            packet = new InventoryS2CPacket(packet.getSyncId(), packet.getRevision(), newContents, packet.getCursorStack());
+            DefaultedList<ItemStack> newContents = DefaultedList.copyOf(ItemStack.EMPTY,
+                    newStacks.toArray(ItemStack[]::new));
+            packet = new InventoryS2CPacket(packet.getSyncId(), packet.getRevision(), newContents,
+                    packet.getCursorStack());
         }
 
         return packet;

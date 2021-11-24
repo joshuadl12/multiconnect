@@ -57,7 +57,8 @@ public class Protocol_1_9_2 extends Protocol_1_9_4 {
         int minZ = translator.getPacket().getZ() * 16;
         for (int sectionY = 0; sectionY < 16; sectionY++) {
             if (data.getSections()[sectionY] != null) {
-                for (BlockPos pos : BlockPos.iterate(minX, 16 * sectionY, minZ, minX + 15, 16 * sectionY + 15, minZ + 15)) {
+                for (BlockPos pos : BlockPos.iterate(minX, 16 * sectionY, minZ, minX + 15, 16 * sectionY + 15,
+                        minZ + 15)) {
                     BlockState state = data.getBlockState(pos);
                     if (state.hasBlockEntity()) {
                         BlockEntityType<?> blockEntityType = null;
@@ -75,7 +76,8 @@ public class Protocol_1_9_2 extends Protocol_1_9_4 {
                             } else {
                                 blockEntityId = Protocol_1_10.getBlockEntityId(blockEntityType);
                                 if (blockEntityId == null) {
-                                    LOGGER.warn("Block entity " + Registry.BLOCK_ENTITY_TYPE.getId(blockEntityType) + " has no 1.10 ID but tried to be created in chunk data");
+                                    LOGGER.warn("Block entity " + Registry.BLOCK_ENTITY_TYPE.getId(blockEntityType)
+                                            + " has no 1.10 ID but tried to be created in chunk data");
                                     continue;
                                 }
                             }
@@ -84,11 +86,11 @@ public class Protocol_1_9_2 extends Protocol_1_9_4 {
                             nbt.putInt("y", pos.getY());
                             nbt.putInt("z", pos.getZ());
                             var blockEntity = ChunkDataBlockEntityAccessor.createChunkDataBlockEntity(
-                                    (ChunkSectionPos.getLocalCoord(pos.getX()) << 4) | ChunkSectionPos.getLocalCoord(pos.getZ()),
-                                    pos.getY(),
-                                    blockEntityType,
-                                    nbt);
-                            ((ChunkDataAccessor) translator.getPacket().getChunkData()).getBlockEntities().add(blockEntity);
+                                    (ChunkSectionPos.getLocalCoord(pos.getX()) << 4)
+                                            | ChunkSectionPos.getLocalCoord(pos.getZ()),
+                                    pos.getY(), blockEntityType, nbt);
+                            ((ChunkDataAccessor) translator.getPacket().getChunkData()).getBlockEntities()
+                                    .add(blockEntity);
                         }
                     }
                 }
@@ -101,7 +103,8 @@ public class Protocol_1_9_2 extends Protocol_1_9_4 {
     @Override
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
-        insertAfter(packets, TitleS2CPacket_1_16_5.class, PacketInfo.of(UpdateSignS2CPacket.class, UpdateSignS2CPacket::new));
+        insertAfter(packets, TitleS2CPacket_1_16_5.class,
+                PacketInfo.of(UpdateSignS2CPacket.class, UpdateSignS2CPacket::new));
         return packets;
     }
 

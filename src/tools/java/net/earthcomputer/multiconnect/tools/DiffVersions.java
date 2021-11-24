@@ -31,7 +31,8 @@ public class DiffVersions {
             System.err.println("Invalid version: " + version);
             System.exit(1);
         }
-        try (InputStreamReader reader = new InputStreamReader(url.openConnection().getInputStream(), StandardCharsets.UTF_8)) {
+        try (InputStreamReader reader = new InputStreamReader(url.openConnection().getInputStream(),
+                StandardCharsets.UTF_8)) {
             return GSON.fromJson(reader, Version[].class)[0];
         } catch (IOException e) {
             System.err.println("Failed to open connection to " + url);

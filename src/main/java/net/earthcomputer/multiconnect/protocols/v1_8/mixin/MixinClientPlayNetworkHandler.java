@@ -38,23 +38,32 @@ import java.util.List;
 
 @Mixin(value = ClientPlayNetworkHandler.class, priority = -1000)
 public abstract class MixinClientPlayNetworkHandler {
-    @Unique private static final Logger MULTICONNECT_LOGGER = LogManager.getLogger("multiconnect");
+    @Unique
+    private static final Logger MULTICONNECT_LOGGER = LogManager.getLogger("multiconnect");
 
-    @Shadow private ClientWorld world;
+    @Shadow
+    private ClientWorld world;
 
-    @Shadow public abstract void onUnloadChunk(UnloadChunkS2CPacket packet);
+    @Shadow
+    private MinecraftClient client = MinecraftClient.getInstance();
 
-    @Shadow public abstract void onEntityStatus(EntityStatusS2CPacket packet);
+    @Shadow
+    public abstract void onUnloadChunk(UnloadChunkS2CPacket packet);
 
-    @Shadow public abstract void onChunkData(ChunkDataS2CPacket packet);
+    @Shadow
+    public abstract void onEntityStatus(EntityStatusS2CPacket packet);
 
-    @Shadow private DynamicRegistryManager registryManager;
+    @Shadow
+    public abstract void onChunkData(ChunkDataS2CPacket packet);
 
-    @Inject(method = {"onGameJoin", "onPlayerRespawn"}, at = @At("TAIL"))
+    @Shadow
+    private DynamicRegistryManager registryManager;
+
+    @Inject(method = { "onGameJoin", "onPlayerRespawn" }, at = @At("TAIL"))
     private void onOnGameJoinOrRespawn(CallbackInfo ci) {
         if (ConnectionInfo.protocolVersion <= Protocols.V1_8) {
             // client permission level 4 to enable features just in case we're opped
-            ClientPlayerEntity player = MinecraftClient.getInstance().player;
+            ClientPlayerEntity player = this.client.player;
             assert player != null;
             onEntityStatus(new EntityStatusS2CPacket(player, (byte) 28));
         }
@@ -73,12 +82,14 @@ public abstract class MixinClientPlayNetworkHandler {
 
     @Inject(method = "onChunkData", at = @At("RETURN"))
     private void postChunkData(ChunkDataS2CPacket packet, CallbackInfo ci) {
-        // 1.8 doesn't send neighboring empty chunks, so we must assume they are empty unless otherwise specified
+        // 1.8 doesn't send neighboring empty chunks, so we must assume they are empty
+        // unless otherwise specified
         if (ConnectionInfo.protocolVersion > Protocols.V1_8) {
             return;
         }
 
-        // don't load more empty chunks next to empty chunks, that would cause an infinite loop
+        // don't load more empty chunks next to empty chunks, that would cause an
+        // infinite loop
         WorldChunk chunk = world.getChunk(packet.getX(), packet.getZ());
         if (!Utils.isChunkEmpty(chunk)) {
             for (Direction dir : Direction.Type.HORIZONTAL) {
@@ -91,9 +102,7 @@ public abstract class MixinClientPlayNetworkHandler {
         }
     }
 
-    @Inject(method = "onEntityTrackerUpdate",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/util/thread/ThreadExecutor;)V", shift = At.Shift.AFTER),
-            cancellable = true)
+    @Inject(method = "onEntityTrackerUpdate", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/util/thread/ThreadExecutor;)V", shift = At.Shift.AFTER), cancellable = true)
     private void onOnEntityTrackerUpdate(EntityTrackerUpdateS2CPacket packet, CallbackInfo ci) {
         if (ConnectionInfo.protocolVersion <= Protocols.V1_8) {
             Entity entity = world.getEntityById(packet.id());
@@ -104,24 +113,23 @@ public abstract class MixinClientPlayNetworkHandler {
                 }
                 for (DataTracker.Entry<?> entry : trackedValues) {
                     if (!(entry instanceof DataTrackerEntry_1_8 entry_1_8)) {
-                        MULTICONNECT_LOGGER.warn("Not handling entity tracker update entry which was not constructed for 1.8");
+                        MULTICONNECT_LOGGER
+                                .warn("Not handling entity tracker update entry which was not constructed for 1.8");
                         continue;
                     }
                     switch (entry_1_8.getSerializerId()) {
-                        case 0 -> Protocol_1_8.handleByteTrackedData(entity, entry_1_8.getId(), (Byte) entry_1_8.get());
-                        case 1 -> Protocol_1_8.handleShortTrackedData(entity, entry_1_8.getId(),
-                                (Short) entry_1_8.get());
-                        case 2 -> Protocol_1_8.handleIntTrackedData(entity, entry_1_8.getId(),
-                                (Integer) entry_1_8.get());
-                        case 3 -> Protocol_1_8.handleFloatTrackedData(entity, entry_1_8.getId(),
-                                (Float) entry_1_8.get());
-                        case 4 -> Protocol_1_8.handleStringTrackedData(entity, entry_1_8.getId(),
-                                (String) entry_1_8.get());
-                        case 5 -> Protocol_1_8.handleItemStackTrackedData(entity, entry_1_8.getId(),
-                                (ItemStack) entry_1_8.get());
-                        case 6 -> Protocol_1_8.handleBlockPosTrackedData(entity, entry_1_8.getId(), (BlockPos) entry_1_8.get());
-                        case 7 -> Protocol_1_8.handleEulerAngleTrackedData(entity, entry_1_8.getId(), (EulerAngle) entry_1_8.get());
-                        default -> throw new AssertionError();
+                    case 0 -> Protocol_1_8.handleByteTrackedData(entity, entry_1_8.getId(), (Byte) entry_1_8.get());
+                    case 1 -> Protocol_1_8.handleShortTrackedData(entity, entry_1_8.getId(), (Short) entry_1_8.get());
+                    case 2 -> Protocol_1_8.handleIntTrackedData(entity, entry_1_8.getId(), (Integer) entry_1_8.get());
+                    case 3 -> Protocol_1_8.handleFloatTrackedData(entity, entry_1_8.getId(), (Float) entry_1_8.get());
+                    case 4 -> Protocol_1_8.handleStringTrackedData(entity, entry_1_8.getId(), (String) entry_1_8.get());
+                    case 5 -> Protocol_1_8.handleItemStackTrackedData(entity, entry_1_8.getId(),
+                            (ItemStack) entry_1_8.get());
+                    case 6 -> Protocol_1_8.handleBlockPosTrackedData(entity, entry_1_8.getId(),
+                            (BlockPos) entry_1_8.get());
+                    case 7 -> Protocol_1_8.handleEulerAngleTrackedData(entity, entry_1_8.getId(),
+                            (EulerAngle) entry_1_8.get());
+                    default -> throw new AssertionError();
                     }
                 }
             }

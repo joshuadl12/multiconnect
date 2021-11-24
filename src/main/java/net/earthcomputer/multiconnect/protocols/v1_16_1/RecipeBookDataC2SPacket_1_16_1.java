@@ -3,6 +3,7 @@ package net.earthcomputer.multiconnect.protocols.v1_16_1;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.network.Packet;
+
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.listener.ServerPlayPacketListener;
 import net.minecraft.network.packet.c2s.play.RecipeBookDataC2SPacket;
@@ -33,8 +34,9 @@ public class RecipeBookDataC2SPacket_1_16_1 implements Packet<ServerPlayPacketLi
     }
 
     public RecipeBookDataC2SPacket_1_16_1(RecipeCategoryOptionsC2SPacket packet) {
+        MinecraftClient mc = MinecraftClient.getInstance();
         this.mode = Mode.SETTINGS;
-        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        ClientPlayerEntity player = mc.player;
         if (player != null) {
             RecipeBookOptions bookOptions = player.getRecipeBook().getOptions();
             guiOpen = isGuiOpen(packet, bookOptions, RecipeBookCategory.CRAFTING);
@@ -42,13 +44,15 @@ public class RecipeBookDataC2SPacket_1_16_1 implements Packet<ServerPlayPacketLi
             furnaceGuiOpen = isGuiOpen(packet, bookOptions, RecipeBookCategory.FURNACE);
             furnaceFilteringCraftable = isFilteringCraftable(packet, bookOptions, RecipeBookCategory.FURNACE);
             blastFurnaceGuiOpen = isGuiOpen(packet, bookOptions, RecipeBookCategory.BLAST_FURNACE);
-            blastFurnaceFilteringCraftable = isFilteringCraftable(packet, bookOptions, RecipeBookCategory.BLAST_FURNACE);
+            blastFurnaceFilteringCraftable = isFilteringCraftable(packet, bookOptions,
+                    RecipeBookCategory.BLAST_FURNACE);
             smokerGuiOpen = isGuiOpen(packet, bookOptions, RecipeBookCategory.SMOKER);
             smokerGuiFilteringCraftable = isFilteringCraftable(packet, bookOptions, RecipeBookCategory.SMOKER);
         }
     }
 
-    private static boolean isGuiOpen(RecipeCategoryOptionsC2SPacket packet, RecipeBookOptions bookOptions, RecipeBookCategory category) {
+    private static boolean isGuiOpen(RecipeCategoryOptionsC2SPacket packet, RecipeBookOptions bookOptions,
+            RecipeBookCategory category) {
         if (packet.getCategory() == category) {
             return packet.isGuiOpen();
         } else {
@@ -56,7 +60,8 @@ public class RecipeBookDataC2SPacket_1_16_1 implements Packet<ServerPlayPacketLi
         }
     }
 
-    private static boolean isFilteringCraftable(RecipeCategoryOptionsC2SPacket packet, RecipeBookOptions bookOptions, RecipeBookCategory category) {
+    private static boolean isFilteringCraftable(RecipeCategoryOptionsC2SPacket packet, RecipeBookOptions bookOptions,
+            RecipeBookCategory category) {
         if (packet.getCategory() == category) {
             return packet.isFilteringCraftable();
         } else {

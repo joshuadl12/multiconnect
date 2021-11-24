@@ -1,8 +1,26 @@
 package net.earthcomputer.multiconnect.protocols.v1_12_2;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
 import com.google.common.base.Joiner;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.serialization.Dynamic;
+
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.buffer.Unpooled;
 import net.earthcomputer.multiconnect.api.Protocols;
 import net.earthcomputer.multiconnect.api.ThreadSafe;
@@ -23,7 +41,13 @@ import net.earthcomputer.multiconnect.protocols.v1_11_2.IScreenHandler;
 import net.earthcomputer.multiconnect.protocols.v1_11_2.RecipeBookEmulator;
 import net.earthcomputer.multiconnect.protocols.v1_12.PlaceRecipeC2SPacket_1_12;
 import net.earthcomputer.multiconnect.protocols.v1_12_2.command.Commands_1_12_2;
-import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.*;
+import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.AbstractMinecartEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.AreaEffectCloudEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.BoatEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.CommandBlockMinecartC2SAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.EntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.StatsCounterFixAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_12_2.mixin.WolfEntityAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_13.Protocol_1_13;
 import net.earthcomputer.multiconnect.protocols.v1_13_2.Protocol_1_13_2;
 import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.ZombieEntityAccessor;
@@ -152,22 +176,6 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 public class Protocol_1_12_2 extends Protocol_1_13 {
 
@@ -203,18 +211,27 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         OLD_MOTIVE_NAMES.put("DonkeyKong", PaintingMotive.DONKEY_KONG);
     }
 
+    private static final MinecraftClient client = MinecraftClient.getInstance();
+
     private static final Joiner DOT_JOINER = Joiner.on('.');
 
-    private static final TrackedData<Integer> OLD_AREA_EFFECT_CLOUD_PARTICLE_ID = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
-    public static final TrackedData<Integer> OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM1 = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
-    public static final TrackedData<Integer> OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM2 = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
-    public static final TrackedData<String> OLD_CUSTOM_NAME = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.STRING);
-    public static final TrackedData<Integer> OLD_MINECART_DISPLAY_TILE = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
-    public static final TrackedData<Integer> OLD_WOLF_COLLAR_COLOR = DataTrackerManager.createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    private static final TrackedData<Integer> OLD_AREA_EFFECT_CLOUD_PARTICLE_ID = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Integer> OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM1 = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Integer> OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM2 = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<String> OLD_CUSTOM_NAME = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.STRING);
+    public static final TrackedData<Integer> OLD_MINECART_DISPLAY_TILE = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Integer> OLD_WOLF_COLLAR_COLOR = DataTrackerManager
+            .createOldTrackedData(TrackedDataHandlerRegistry.INTEGER);
 
     public static void registerTranslators() {
         ProtocolRegistry.registerInboundTranslator(ChunkData.class, buf -> {
-            BitSet verticalStripBitmask = ChunkDataTranslator.current().getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
+            BitSet verticalStripBitmask = ChunkDataTranslator.current()
+                    .getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
             buf.enablePassthroughMode();
             for (int sectionY = 0; sectionY < 16; sectionY++) {
                 if (verticalStripBitmask.get(sectionY)) {
@@ -287,10 +304,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         ProtocolRegistry.registerInboundTranslator(ParticleS2CPacket.class, buf -> {
             buf.enablePassthroughMode();
             ParticleType<?> particleType = Registry.PARTICLE_TYPE.get(buf.readInt());
-            if (particleType != ParticleTypes.ITEM
-                    && particleType != ParticleTypes.DUST
-                    && particleType != ParticleTypes.BLOCK
-                    && particleType != ParticleTypes.FALLING_DUST
+            if (particleType != ParticleTypes.ITEM && particleType != ParticleTypes.DUST
+                    && particleType != ParticleTypes.BLOCK && particleType != ParticleTypes.FALLING_DUST
                     && particleType != Particles_1_12_2.BLOCK_DUST) {
                 buf.disablePassthroughMode();
                 buf.applyPendingReads();
@@ -388,8 +403,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
             if (mode == 0 || mode == 2) {
                 buf.pendingRead(Text.class, new LiteralText(buf.readString(32))); // display name
                 String renderTypeName = buf.readString(16);
-                var renderType = "hearts".equals(renderTypeName) ?
-                        ScoreboardCriterion.RenderType.HEARTS : ScoreboardCriterion.RenderType.INTEGER;
+                var renderType = "hearts".equals(renderTypeName) ? ScoreboardCriterion.RenderType.HEARTS
+                        : ScoreboardCriterion.RenderType.INTEGER;
                 buf.pendingRead(ScoreboardCriterion.RenderType.class, renderType);
             }
             buf.applyPendingReads();
@@ -485,7 +500,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
             buf.disablePassthroughMode();
             if (type == BossBarS2CPacket.Type.UPDATE_PROPERTIES) {
                 int flags = buf.readUnsignedByte();
-                buf.pendingRead(UnsignedByte.class, new UnsignedByte((short) (flags | ((flags & 2) << 1)))); // copy bit 2 to 4
+                buf.pendingRead(UnsignedByte.class, new UnsignedByte((short) (flags | ((flags & 2) << 1)))); // copy bit
+                                                                                                             // 2 to 4
             }
             buf.applyPendingReads();
         });
@@ -588,7 +604,7 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
 
             buf.whenWrite(() -> TabCompletionManager.addTabCompletionRequest(completionId.get().get(), command.get()));
             buf.pendingWrite(String.class, command, val -> buf.writeString(val, 32767));
-            HitResult hitResult = MinecraftClient.getInstance().crosshairTarget;
+            HitResult hitResult = Protocol_1_12_2.client.crosshairTarget;
             boolean hasTarget = hitResult != null && hitResult.getType() == HitResult.Type.BLOCK;
             buf.pendingWrite(Boolean.class, () -> false, buf::writeBoolean);
             buf.pendingWrite(Boolean.class, () -> hasTarget, buf::writeBoolean);
@@ -613,7 +629,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
                             buf.pendingWrite(Short.class, itemId, (Consumer<Short>) buf::writeShort);
                             buf.pendingWrite(Byte.class, count, (Consumer<Byte>) buf::writeByte);
                             buf.pendingWrite(Short.class, () -> (short) meta, (Consumer<Short>) buf::writeShort);
-                            buf.pendingWrite(NbtCompound.class, () -> oldNbt.getSize() == 0 ? null : oldNbt, buf::writeNbt);
+                            buf.pendingWrite(NbtCompound.class, () -> oldNbt.getSize() == 0 ? null : oldNbt,
+                                    buf::writeNbt);
                         });
                     }
                 });
@@ -648,32 +665,32 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
 
         StatType<T> type;
         switch (parts[1]) {
-            case "mineBlock":
-                type = (StatType<T>) Stats.MINED;
-                break;
-            case "craftItem":
-                type = (StatType<T>) Stats.CRAFTED;
-                break;
-            case "useItem":
-                type = (StatType<T>) Stats.USED;
-                break;
-            case "breakItem":
-                type = (StatType<T>) Stats.BROKEN;
-                break;
-            case "pickup":
-                type = (StatType<T>) Stats.PICKED_UP;
-                break;
-            case "drop":
-                type = (StatType<T>) Stats.DROPPED;
-                break;
-            case "killEntity":
-                type = (StatType<T>) Stats.KILLED;
-                break;
-            case "entityKilledBy":
-                type = (StatType<T>) Stats.KILLED_BY;
-                break;
-            default:
-                return null;
+        case "mineBlock":
+            type = (StatType<T>) Stats.MINED;
+            break;
+        case "craftItem":
+            type = (StatType<T>) Stats.CRAFTED;
+            break;
+        case "useItem":
+            type = (StatType<T>) Stats.USED;
+            break;
+        case "breakItem":
+            type = (StatType<T>) Stats.BROKEN;
+            break;
+        case "pickup":
+            type = (StatType<T>) Stats.PICKED_UP;
+            break;
+        case "drop":
+            type = (StatType<T>) Stats.DROPPED;
+            break;
+        case "killEntity":
+            type = (StatType<T>) Stats.KILLED;
+            break;
+        case "entityKilledBy":
+            type = (StatType<T>) Stats.KILLED_BY;
+            break;
+        default:
+            return null;
         }
 
         if (type == Stats.KILLED || type == Stats.KILLED_BY) {
@@ -688,7 +705,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         if (parts.length < 4) {
             return null;
         }
-        Identifier id = Identifier.tryParse(parts[2] + ":" + DOT_JOINER.join(Arrays.asList(parts).subList(3, parts.length)));
+        Identifier id = Identifier
+                .tryParse(parts[2] + ":" + DOT_JOINER.join(Arrays.asList(parts).subList(3, parts.length)));
         if (id == null || !type.getRegistry().containsId(id)) {
             return null;
         }
@@ -697,59 +715,59 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
 
     private static Identifier translateCustomStat(String id) {
         return switch (id) {
-            case "jump" -> Stats.JUMP;
-            case "drop" -> Stats.DROP;
-            case "deaths" -> Stats.DEATHS;
-            case "mobKills" -> Stats.MOB_KILLS;
-            case "pigOneCm" -> Stats.PIG_ONE_CM;
-            case "flyOneCm" -> Stats.FLY_ONE_CM;
-            case "leaveGame" -> Stats.LEAVE_GAME;
-            case "diveOneCm" -> Stats.WALK_UNDER_WATER_ONE_CM;
-            case "swimOneCm" -> Stats.SWIM_ONE_CM;
-            case "fallOneCm" -> Stats.FALL_ONE_CM;
-            case "walkOneCm" -> Stats.WALK_ONE_CM;
-            case "boatOneCm" -> Stats.BOAT_ONE_CM;
-            case "sneakTime" -> Stats.SNEAK_TIME;
-            case "horseOneCm" -> Stats.HORSE_ONE_CM;
-            case "sleepInBed" -> Stats.SLEEP_IN_BED;
-            case "fishCaught" -> Stats.FISH_CAUGHT;
-            case "climbOneCm" -> Stats.CLIMB_ONE_CM;
-            case "aviateOneCm" -> Stats.AVIATE_ONE_CM;
-            case "crouchOneCm" -> Stats.CROUCH_ONE_CM;
-            case "sprintOneCm" -> Stats.SPRINT_ONE_CM;
-            case "animalsBred" -> Stats.ANIMALS_BRED;
-            case "chestOpened" -> Stats.OPEN_CHEST;
-            case "damageTaken" -> Stats.DAMAGE_TAKEN;
-            case "damageDealt" -> Stats.DAMAGE_DEALT;
-            case "playerKills" -> Stats.PLAYER_KILLS;
-            case "armorCleaned" -> Stats.CLEAN_ARMOR;
-            case "flowerPotted" -> Stats.POT_FLOWER;
-            case "recordPlayed" -> Stats.PLAY_RECORD;
-            case "cauldronUsed" -> Stats.USE_CAULDRON;
-            case "bannerCleaned" -> Stats.CLEAN_BANNER;
-            case "itemEnchanted" -> Stats.ENCHANT_ITEM;
-            case "playOneMinute" -> Stats.PLAY_TIME;
-            case "minecartOneCm" -> Stats.MINECART_ONE_CM;
-            case "timeSinceDeath" -> Stats.TIME_SINCE_DEATH;
-            case "cauldronFilled" -> Stats.FILL_CAULDRON;
-            case "noteblockTuned" -> Stats.TUNE_NOTEBLOCK;
-            case "noteblockPlayed" -> Stats.PLAY_NOTEBLOCK;
-            case "cakeSlicesEaten" -> Stats.EAT_CAKE_SLICE;
-            case "hopperInspected" -> Stats.INSPECT_HOPPER;
-            case "shulkerBoxOpened" -> Stats.OPEN_SHULKER_BOX;
-            case "talkedToVillager" -> Stats.TALKED_TO_VILLAGER;
-            case "enderchestOpened" -> Stats.OPEN_ENDERCHEST;
-            case "dropperInspected" -> Stats.INSPECT_DROPPER;
-            case "beaconInteraction" -> Stats.INTERACT_WITH_BEACON;
-            case "furnaceInteraction" -> Stats.INTERACT_WITH_FURNACE;
-            case "dispenserInspected" -> Stats.INSPECT_DISPENSER;
-            case "tradedWithVillager" -> Stats.TRADED_WITH_VILLAGER;
-            case "trappedChestTriggered" -> Stats.TRIGGER_TRAPPED_CHEST;
-            case "brewingstandInteraction" -> Stats.INTERACT_WITH_BREWINGSTAND;
-            case "craftingTableInteraction" -> Stats.INTERACT_WITH_CRAFTING_TABLE;
-            case "junkFished" -> Protocol_1_11.JUNK_FISHED;
-            case "treasureFished" -> Protocol_1_11.TREASURE_FISHED;
-            default -> null;
+        case "jump" -> Stats.JUMP;
+        case "drop" -> Stats.DROP;
+        case "deaths" -> Stats.DEATHS;
+        case "mobKills" -> Stats.MOB_KILLS;
+        case "pigOneCm" -> Stats.PIG_ONE_CM;
+        case "flyOneCm" -> Stats.FLY_ONE_CM;
+        case "leaveGame" -> Stats.LEAVE_GAME;
+        case "diveOneCm" -> Stats.WALK_UNDER_WATER_ONE_CM;
+        case "swimOneCm" -> Stats.SWIM_ONE_CM;
+        case "fallOneCm" -> Stats.FALL_ONE_CM;
+        case "walkOneCm" -> Stats.WALK_ONE_CM;
+        case "boatOneCm" -> Stats.BOAT_ONE_CM;
+        case "sneakTime" -> Stats.SNEAK_TIME;
+        case "horseOneCm" -> Stats.HORSE_ONE_CM;
+        case "sleepInBed" -> Stats.SLEEP_IN_BED;
+        case "fishCaught" -> Stats.FISH_CAUGHT;
+        case "climbOneCm" -> Stats.CLIMB_ONE_CM;
+        case "aviateOneCm" -> Stats.AVIATE_ONE_CM;
+        case "crouchOneCm" -> Stats.CROUCH_ONE_CM;
+        case "sprintOneCm" -> Stats.SPRINT_ONE_CM;
+        case "animalsBred" -> Stats.ANIMALS_BRED;
+        case "chestOpened" -> Stats.OPEN_CHEST;
+        case "damageTaken" -> Stats.DAMAGE_TAKEN;
+        case "damageDealt" -> Stats.DAMAGE_DEALT;
+        case "playerKills" -> Stats.PLAYER_KILLS;
+        case "armorCleaned" -> Stats.CLEAN_ARMOR;
+        case "flowerPotted" -> Stats.POT_FLOWER;
+        case "recordPlayed" -> Stats.PLAY_RECORD;
+        case "cauldronUsed" -> Stats.USE_CAULDRON;
+        case "bannerCleaned" -> Stats.CLEAN_BANNER;
+        case "itemEnchanted" -> Stats.ENCHANT_ITEM;
+        case "playOneMinute" -> Stats.PLAY_TIME;
+        case "minecartOneCm" -> Stats.MINECART_ONE_CM;
+        case "timeSinceDeath" -> Stats.TIME_SINCE_DEATH;
+        case "cauldronFilled" -> Stats.FILL_CAULDRON;
+        case "noteblockTuned" -> Stats.TUNE_NOTEBLOCK;
+        case "noteblockPlayed" -> Stats.PLAY_NOTEBLOCK;
+        case "cakeSlicesEaten" -> Stats.EAT_CAKE_SLICE;
+        case "hopperInspected" -> Stats.INSPECT_HOPPER;
+        case "shulkerBoxOpened" -> Stats.OPEN_SHULKER_BOX;
+        case "talkedToVillager" -> Stats.TALKED_TO_VILLAGER;
+        case "enderchestOpened" -> Stats.OPEN_ENDERCHEST;
+        case "dropperInspected" -> Stats.INSPECT_DROPPER;
+        case "beaconInteraction" -> Stats.INTERACT_WITH_BEACON;
+        case "furnaceInteraction" -> Stats.INTERACT_WITH_FURNACE;
+        case "dispenserInspected" -> Stats.INSPECT_DISPENSER;
+        case "tradedWithVillager" -> Stats.TRADED_WITH_VILLAGER;
+        case "trappedChestTriggered" -> Stats.TRIGGER_TRAPPED_CHEST;
+        case "brewingstandInteraction" -> Stats.INTERACT_WITH_BREWINGSTAND;
+        case "craftingTableInteraction" -> Stats.INTERACT_WITH_CRAFTING_TABLE;
+        case "junkFished" -> Protocol_1_11.JUNK_FISHED;
+        case "treasureFished" -> Protocol_1_11.TREASURE_FISHED;
+        default -> null;
         };
     }
 
@@ -763,7 +781,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
     public List<PacketInfo<?>> getClientboundPackets() {
         List<PacketInfo<?>> packets = super.getClientboundPackets();
         remove(packets, CommandSuggestionsS2CPacket.class);
-        insertAfter(packets, DifficultyS2CPacket.class, PacketInfo.of(CommandSuggestionsS2CPacket.class, CommandSuggestionsS2CPacket::new));
+        insertAfter(packets, DifficultyS2CPacket.class,
+                PacketInfo.of(CommandSuggestionsS2CPacket.class, CommandSuggestionsS2CPacket::new));
         remove(packets, CommandTreeS2CPacket.class);
         remove(packets, NbtQueryResponseS2CPacket.class);
         remove(packets, LookAtS2CPacket.class);
@@ -777,7 +796,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
     public List<PacketInfo<?>> getServerboundPackets() {
         List<PacketInfo<?>> packets = super.getServerboundPackets();
         remove(packets, RequestCommandCompletionsC2SPacket.class);
-        insertAfter(packets, TeleportConfirmC2SPacket.class, PacketInfo.of(RequestCommandCompletionsC2SPacket.class, RequestCommandCompletionsC2SPacket::new));
+        insertAfter(packets, TeleportConfirmC2SPacket.class,
+                PacketInfo.of(RequestCommandCompletionsC2SPacket.class, RequestCommandCompletionsC2SPacket::new));
         remove(packets, QueryBlockNbtC2SPacket.class);
         remove(packets, BookUpdateC2SPacket.class);
         remove(packets, QueryEntityNbtC2SPacket.class);
@@ -789,7 +809,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         remove(packets, UpdateCommandBlockMinecartC2SPacket.class);
         remove(packets, UpdateStructureBlockC2SPacket.class);
         remove(packets, CustomPayloadC2SPacket.class);
-        insertAfter(packets, CloseHandledScreenC2SPacket.class, PacketInfo.of(CustomPayloadC2SPacket_1_12_2.class, CustomPayloadC2SPacket_1_12_2::new));
+        insertAfter(packets, CloseHandledScreenC2SPacket.class,
+                PacketInfo.of(CustomPayloadC2SPacket_1_12_2.class, CustomPayloadC2SPacket_1_12_2::new));
         return packets;
     }
 
@@ -865,13 +886,13 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
             buf.writeString(updateCmdBlock.getCommand());
             buf.writeBoolean(updateCmdBlock.shouldTrackOutput());
             switch (updateCmdBlock.getType()) {
-                case AUTO -> buf.writeString("AUTO");
-                case REDSTONE -> buf.writeString("REDSTONE");
-                case SEQUENCE -> buf.writeString("SEQUENCE");
-                default -> {
-                    LOGGER.error("Unknown command block type: " + updateCmdBlock.getType());
-                    return false;
-                }
+            case AUTO -> buf.writeString("AUTO");
+            case REDSTONE -> buf.writeString("REDSTONE");
+            case SEQUENCE -> buf.writeString("SEQUENCE");
+            default -> {
+                LOGGER.error("Unknown command block type: " + updateCmdBlock.getType());
+                return false;
+            }
             }
             buf.writeBoolean(updateCmdBlock.isConditional());
             buf.writeBoolean(updateCmdBlock.isAlwaysActive());
@@ -897,24 +918,24 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
             buf.writeInt(updateStructBlock.getPos().getY());
             buf.writeInt(updateStructBlock.getPos().getZ());
             switch (updateStructBlock.getAction()) {
-                case UPDATE_DATA -> buf.writeByte(1);
-                case SAVE_AREA -> buf.writeByte(2);
-                case LOAD_AREA -> buf.writeByte(3);
-                case SCAN_AREA -> buf.writeByte(4);
-                default -> {
-                    LOGGER.error("Unknown structure block action: " + updateStructBlock.getAction());
-                    return false;
-                }
+            case UPDATE_DATA -> buf.writeByte(1);
+            case SAVE_AREA -> buf.writeByte(2);
+            case LOAD_AREA -> buf.writeByte(3);
+            case SCAN_AREA -> buf.writeByte(4);
+            default -> {
+                LOGGER.error("Unknown structure block action: " + updateStructBlock.getAction());
+                return false;
+            }
             }
             switch (updateStructBlock.getMode()) {
-                case SAVE -> buf.writeString("SAVE");
-                case LOAD -> buf.writeString("LOAD");
-                case CORNER -> buf.writeString("CORNER");
-                case DATA -> buf.writeString("DATA");
-                default -> {
-                    LOGGER.error("Unknown structure block mode: " + updateStructBlock.getMode());
-                    return false;
-                }
+            case SAVE -> buf.writeString("SAVE");
+            case LOAD -> buf.writeString("LOAD");
+            case CORNER -> buf.writeString("CORNER");
+            case DATA -> buf.writeString("DATA");
+            default -> {
+                LOGGER.error("Unknown structure block mode: " + updateStructBlock.getMode());
+                return false;
+            }
             }
             buf.writeString(updateStructBlock.getStructureName());
             buf.writeInt(updateStructBlock.getOffset().getX());
@@ -924,23 +945,23 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
             buf.writeInt(updateStructBlock.getSize().getY());
             buf.writeInt(updateStructBlock.getSize().getZ());
             switch (updateStructBlock.getMirror()) {
-                case NONE -> buf.writeString("NONE");
-                case LEFT_RIGHT -> buf.writeString("LEFT_RIGHT");
-                case FRONT_BACK -> buf.writeString("FRONT_BACK");
-                default -> {
-                    LOGGER.error("Unknown mirror: " + updateStructBlock.getMirror());
-                    return false;
-                }
+            case NONE -> buf.writeString("NONE");
+            case LEFT_RIGHT -> buf.writeString("LEFT_RIGHT");
+            case FRONT_BACK -> buf.writeString("FRONT_BACK");
+            default -> {
+                LOGGER.error("Unknown mirror: " + updateStructBlock.getMirror());
+                return false;
+            }
             }
             switch (updateStructBlock.getRotation()) {
-                case NONE -> buf.writeString("NONE");
-                case CLOCKWISE_90 -> buf.writeString("CLOCKWISE_90");
-                case CLOCKWISE_180 -> buf.writeString("CLOCKWISE_180");
-                case COUNTERCLOCKWISE_90 -> buf.writeString("COUNTERCLOCKWISE_90");
-                default -> {
-                    LOGGER.error("Unknown rotation: " + updateStructBlock.getRotation());
-                    return false;
-                }
+            case NONE -> buf.writeString("NONE");
+            case CLOCKWISE_90 -> buf.writeString("CLOCKWISE_90");
+            case CLOCKWISE_180 -> buf.writeString("CLOCKWISE_180");
+            case COUNTERCLOCKWISE_90 -> buf.writeString("COUNTERCLOCKWISE_90");
+            default -> {
+                LOGGER.error("Unknown rotation: " + updateStructBlock.getRotation());
+                return false;
+            }
             }
             buf.writeString(updateStructBlock.getMetadata());
             buf.writeBoolean(updateStructBlock.shouldIgnoreEntities());
@@ -955,32 +976,35 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         if (packet instanceof PlaceRecipeC2SPacket_1_12 recipePlacement) {
             // emulate furnace recipe placements
             if (ConnectionInfo.protocolVersion != Protocols.V1_12) {
-                MinecraftClient.getInstance().execute(() -> {
-                    PlayerEntity player = MinecraftClient.getInstance().player;
+                Protocol_1_12_2.client.execute(() -> {
+                    PlayerEntity player = Protocol_1_12_2.client.player;
                     if (player != null) {
-                        RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler).multiconnect_getRecipeBookEmulator();
+                        RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler)
+                                .multiconnect_getRecipeBookEmulator();
                         recipeBookEmulator.emulateRecipePlacement(recipePlacement);
                     }
                 });
                 return false;
             } else {
-                if (MinecraftClient.getInstance().isOnThread()) {
-                    PlayerEntity player = MinecraftClient.getInstance().player;
+                if (Protocol_1_12_2.client.isOnThread()) {
+                    PlayerEntity player = Protocol_1_12_2.client.player;
                     if (player != null
                             && player.currentScreenHandler instanceof AbstractRecipeScreenHandler<?> recipeScreenHandler
                             && recipeScreenHandler.getCategory() != RecipeBookCategory.CRAFTING) {
-                        RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler).multiconnect_getRecipeBookEmulator();
+                        RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler)
+                                .multiconnect_getRecipeBookEmulator();
                         recipeBookEmulator.emulateRecipePlacement(recipePlacement);
                         return false;
                     }
                 } else {
                     checkConnectionValid(connection);
-                    MinecraftClient.getInstance().execute(() -> {
-                        PlayerEntity player = MinecraftClient.getInstance().player;
+                    Protocol_1_12_2.client.execute(() -> {
+                        PlayerEntity player = Protocol_1_12_2.client.player;
                         if (player != null
                                 && player.currentScreenHandler instanceof AbstractRecipeScreenHandler<?> recipeScreenHandler
                                 && recipeScreenHandler.getCategory() != RecipeBookCategory.CRAFTING) {
-                            RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler).multiconnect_getRecipeBookEmulator();
+                            RecipeBookEmulator recipeBookEmulator = ((IScreenHandler) player.currentScreenHandler)
+                                    .multiconnect_getRecipeBookEmulator();
                             recipeBookEmulator.emulateRecipePlacement(recipePlacement);
                         } else {
                             connection.sendPacket(packet);
@@ -1018,29 +1042,23 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
             return false;
 
         if (clazz == AreaEffectCloudEntity.class && data == AreaEffectCloudEntityAccessor.getParticleId()) {
+            DataTrackerManager.registerOldTrackedData(AreaEffectCloudEntity.class, OLD_AREA_EFFECT_CLOUD_PARTICLE_ID,
+                    Registry.PARTICLE_TYPE.getRawId(ParticleTypes.ENTITY_EFFECT), (entity, val) -> {
+                        ParticleType<?> type = Registry.PARTICLE_TYPE.get(val);
+                        if (type == null)
+                            type = ParticleTypes.ENTITY_EFFECT;
+                        setParticleType(entity, type);
+                    });
             DataTrackerManager.registerOldTrackedData(AreaEffectCloudEntity.class,
-                    OLD_AREA_EFFECT_CLOUD_PARTICLE_ID,
-                    Registry.PARTICLE_TYPE.getRawId(ParticleTypes.ENTITY_EFFECT),
-                    (entity, val) -> {
-                ParticleType<?> type = Registry.PARTICLE_TYPE.get(val);
-                if (type == null)
-                    type = ParticleTypes.ENTITY_EFFECT;
-                setParticleType(entity, type);
-            });
+                    OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM1, 0, (entity, val) -> {
+                        ((IAreaEffectCloudEntity) entity).multiconnect_setParam1(val);
+                        setParticleType(entity, entity.getParticleType().getType());
+                    });
             DataTrackerManager.registerOldTrackedData(AreaEffectCloudEntity.class,
-                    OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM1,
-                    0,
-                    (entity, val) -> {
-                ((IAreaEffectCloudEntity) entity).multiconnect_setParam1(val);
-                setParticleType(entity, entity.getParticleType().getType());
-            });
-            DataTrackerManager.registerOldTrackedData(AreaEffectCloudEntity.class,
-                    OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM2,
-                    0,
-                    (entity, val) -> {
-                ((IAreaEffectCloudEntity) entity).multiconnect_setParam2(val);
-                setParticleType(entity, entity.getParticleType().getType());
-            });
+                    OLD_AREA_EFFECT_CLOUD_PARTICLE_PARAM2, 0, (entity, val) -> {
+                        ((IAreaEffectCloudEntity) entity).multiconnect_setParam2(val);
+                        setParticleType(entity, entity.getParticleType().getType());
+                    });
             return false;
         }
 
@@ -1062,7 +1080,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
             TrackedData<Integer> displayTile = AbstractMinecartEntityAccessor.getCustomBlockId();
             if (data == displayTile) {
                 DataTrackerManager.registerOldTrackedData(AbstractMinecartEntity.class, OLD_MINECART_DISPLAY_TILE, 0,
-                        (entity, val) -> entity.getDataTracker().set(displayTile, Blocks_1_12_2.convertToStateRegistryId(val)));
+                        (entity, val) -> entity.getDataTracker().set(displayTile,
+                                Blocks_1_12_2.convertToStateRegistryId(val)));
                 return false;
             }
         }
@@ -1096,7 +1115,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
                 buf.writeFloat(1);
             }));
         } else {
-            entity.setParticleType(createParticle(type, buf -> {}));
+            entity.setParticleType(createParticle(type, buf -> {
+            }));
         }
     }
 
@@ -1124,17 +1144,23 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         ((IIdList<BlockState>) Block.STATE_IDS).multiconnect_clear();
         for (int blockId = 0; blockId < 256; blockId++) {
             if (blockId == leavesId) {
-                registerLeavesStates(blockId, Blocks.OAK_LEAVES, Blocks.SPRUCE_LEAVES, Blocks.BIRCH_LEAVES, Blocks.JUNGLE_LEAVES);
+                registerLeavesStates(blockId, Blocks.OAK_LEAVES, Blocks.SPRUCE_LEAVES, Blocks.BIRCH_LEAVES,
+                        Blocks.JUNGLE_LEAVES);
             } else if (blockId == leaves2Id) {
-                registerLeavesStates(blockId, Blocks.ACACIA_LEAVES, Blocks.DARK_OAK_LEAVES, Blocks.ACACIA_LEAVES, Blocks.ACACIA_LEAVES);
+                registerLeavesStates(blockId, Blocks.ACACIA_LEAVES, Blocks.DARK_OAK_LEAVES, Blocks.ACACIA_LEAVES,
+                        Blocks.ACACIA_LEAVES);
             } else if (blockId == torchId) {
                 registerTorchStates(blockId, Blocks.TORCH.getDefaultState(), Blocks.WALL_TORCH.getDefaultState());
             } else if (blockId == redstoneTorchId) {
-                registerTorchStates(blockId, Blocks.REDSTONE_TORCH.getDefaultState(), Blocks.REDSTONE_WALL_TORCH.getDefaultState());
+                registerTorchStates(blockId, Blocks.REDSTONE_TORCH.getDefaultState(),
+                        Blocks.REDSTONE_WALL_TORCH.getDefaultState());
             } else if (blockId == unlitRedstoneTorchId) {
-                registerTorchStates(blockId, Blocks.REDSTONE_TORCH.getDefaultState().with(RedstoneTorchBlock.LIT, false), Blocks.REDSTONE_WALL_TORCH.getDefaultState().with(WallRedstoneTorchBlock.LIT, false));
+                registerTorchStates(blockId,
+                        Blocks.REDSTONE_TORCH.getDefaultState().with(RedstoneTorchBlock.LIT, false),
+                        Blocks.REDSTONE_WALL_TORCH.getDefaultState().with(WallRedstoneTorchBlock.LIT, false));
             } else if (blockId == skullId) {
-                final Direction[] dirs = {Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP};
+                final Direction[] dirs = { Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH,
+                        Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP };
                 for (int meta = 0; meta < 16; meta++) {
                     Direction dir = dirs[meta & 7];
                     BlockState state;
@@ -1173,10 +1199,14 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
                         block = Registry.BLOCK.get(new Identifier(fixedName));
                     }
                     if (block != Blocks.AIR || blockId == 0) {
-                        var stateManager = block instanceof DummyBlock ? ((DummyBlock) block).original.getBlock().getStateManager() : block.getStateManager();
-                        BlockState _default = block instanceof DummyBlock ? ((DummyBlock) block).original : block.getDefaultState();
+                        var stateManager = block instanceof DummyBlock
+                                ? ((DummyBlock) block).original.getBlock().getStateManager()
+                                : block.getStateManager();
+                        BlockState _default = block instanceof DummyBlock ? ((DummyBlock) block).original
+                                : block.getDefaultState();
                         BlockState state = _default;
-                        for (Map.Entry<String, String> entry : dynamicState.get("Properties").asMap(k -> k.asString(""), v -> v.asString("")).entrySet()) {
+                        for (Map.Entry<String, String> entry : dynamicState.get("Properties")
+                                .asMap(k -> k.asString(""), v -> v.asString("")).entrySet()) {
                             state = addProperty(stateManager, state, entry.getKey(), entry.getValue());
                         }
                         if (!acceptBlockState(state))
@@ -1201,9 +1231,12 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
     private void registerLeavesStates(int blockId, Block... leavesBlocks) {
         for (int type = 0; type < 4; type++) {
             Block.STATE_IDS.set(leavesBlocks[type].getDefaultState(), blockId << 4 | type);
-            Block.STATE_IDS.set(leavesBlocks[type].getDefaultState().with(LeavesBlock.PERSISTENT, true), blockId << 4 | 4 | type);
-            Block.STATE_IDS.set(leavesBlocks[type].getDefaultState().with(LeavesBlock.DISTANCE, 6), blockId << 4 | 8 | type);
-            Block.STATE_IDS.set(leavesBlocks[type].getDefaultState().with(LeavesBlock.PERSISTENT, true).with(LeavesBlock.DISTANCE, 6), blockId << 4 | 12 | type);
+            Block.STATE_IDS.set(leavesBlocks[type].getDefaultState().with(LeavesBlock.PERSISTENT, true),
+                    blockId << 4 | 4 | type);
+            Block.STATE_IDS.set(leavesBlocks[type].getDefaultState().with(LeavesBlock.DISTANCE, 6),
+                    blockId << 4 | 8 | type);
+            Block.STATE_IDS.set(leavesBlocks[type].getDefaultState().with(LeavesBlock.PERSISTENT, true)
+                    .with(LeavesBlock.DISTANCE, 6), blockId << 4 | 12 | type);
         }
     }
 
@@ -1224,16 +1257,21 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
     private void registerHorizontalFacingStates(int blockId, Block standingBlock, Block wallBlock) {
         Block.STATE_IDS.set(standingBlock.getDefaultState(), blockId << 4);
         Block.STATE_IDS.set(standingBlock.getDefaultState(), blockId << 4 | 1);
-        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.NORTH), blockId << 4 | 2);
-        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.SOUTH), blockId << 4 | 3);
-        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.WEST), blockId << 4 | 4);
-        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.EAST), blockId << 4 | 5);
+        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.NORTH),
+                blockId << 4 | 2);
+        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.SOUTH),
+                blockId << 4 | 3);
+        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.WEST),
+                blockId << 4 | 4);
+        Block.STATE_IDS.set(wallBlock.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.EAST),
+                blockId << 4 | 5);
         for (int meta = 6; meta < 16; meta++)
             Block.STATE_IDS.set(standingBlock.getDefaultState(), blockId << 4 | meta);
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends Comparable<T>> BlockState addProperty(StateManager<Block, BlockState> stateManager, BlockState state, String propName, String valName) {
+    private static <T extends Comparable<T>> BlockState addProperty(StateManager<Block, BlockState> stateManager,
+            BlockState state, String propName, String valName) {
         Property<T> prop = (Property<T>) stateManager.getProperty(propName);
         return prop == null ? state : state.with(prop, prop.parse(valName).orElseGet(() -> state.get(prop)));
     }
@@ -1242,7 +1280,8 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
     public boolean acceptBlockState(BlockState state) {
         Block block = state.getBlock();
         if (block == Blocks.TNT)
-            return super.acceptBlockState(state.with(TntBlock.UNSTABLE, false)); // re-add unstable because it was absent from 1.13.0 :thonkjang:
+            return super.acceptBlockState(state.with(TntBlock.UNSTABLE, false)); // re-add unstable because it was
+                                                                                 // absent from 1.13.0 :thonkjang:
 
         if (!super.acceptBlockState(state))
             return false;
@@ -1256,14 +1295,14 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         if (block == Blocks.LEVER) {
             WallMountLocation face = state.get(LeverBlock.FACE);
             Direction facing = state.get(LeverBlock.FACING);
-            if ((face == WallMountLocation.FLOOR || face == WallMountLocation.CEILING) && (facing == Direction.SOUTH || facing == Direction.EAST))
+            if ((face == WallMountLocation.FLOOR || face == WallMountLocation.CEILING)
+                    && (facing == Direction.SOUTH || facing == Direction.EAST))
                 return false;
         }
         if (block instanceof TrapdoorBlock && state.get(TrapdoorBlock.POWERED))
             return false;
-        if ((block == Blocks.OAK_WOOD || block == Blocks.SPRUCE_WOOD
-                || block == Blocks.BIRCH_WOOD || block == Blocks.JUNGLE_WOOD
-                || block == Blocks.ACACIA_WOOD || block == Blocks.DARK_OAK_WOOD)
+        if ((block == Blocks.OAK_WOOD || block == Blocks.SPRUCE_WOOD || block == Blocks.BIRCH_WOOD
+                || block == Blocks.JUNGLE_WOOD || block == Blocks.ACACIA_WOOD || block == Blocks.DARK_OAK_WOOD)
                 && state.get(PillarBlock.AXIS) != Direction.Axis.Y)
             return false;
         return true;
@@ -1296,260 +1335,84 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
 
     @Override
     public void addExtraBlockTags(TagRegistry<Block> tags) {
-        tags.add(BlockTags.WOOL,
-            Blocks.WHITE_WOOL,
-            Blocks.ORANGE_WOOL,
-            Blocks.MAGENTA_WOOL,
-            Blocks.LIGHT_BLUE_WOOL,
-            Blocks.YELLOW_WOOL,
-            Blocks.LIME_WOOL,
-            Blocks.PINK_WOOL,
-            Blocks.GRAY_WOOL,
-            Blocks.LIGHT_GRAY_WOOL,
-            Blocks.CYAN_WOOL,
-            Blocks.PURPLE_WOOL,
-            Blocks.BLUE_WOOL,
-            Blocks.BROWN_WOOL,
-            Blocks.GREEN_WOOL,
-            Blocks.RED_WOOL,
-            Blocks.BLACK_WOOL);
-        tags.add(BlockTags.PLANKS,
-            Blocks.OAK_PLANKS,
-            Blocks.SPRUCE_PLANKS,
-            Blocks.BIRCH_PLANKS,
-            Blocks.JUNGLE_PLANKS,
-            Blocks.ACACIA_PLANKS,
-            Blocks.DARK_OAK_PLANKS);
-        tags.add(BlockTags.STONE_BRICKS,
-            Blocks.STONE_BRICKS,
-            Blocks.MOSSY_STONE_BRICKS,
-            Blocks.CRACKED_STONE_BRICKS,
-            Blocks.CHISELED_STONE_BRICKS);
+        tags.add(BlockTags.WOOL, Blocks.WHITE_WOOL, Blocks.ORANGE_WOOL, Blocks.MAGENTA_WOOL, Blocks.LIGHT_BLUE_WOOL,
+                Blocks.YELLOW_WOOL, Blocks.LIME_WOOL, Blocks.PINK_WOOL, Blocks.GRAY_WOOL, Blocks.LIGHT_GRAY_WOOL,
+                Blocks.CYAN_WOOL, Blocks.PURPLE_WOOL, Blocks.BLUE_WOOL, Blocks.BROWN_WOOL, Blocks.GREEN_WOOL,
+                Blocks.RED_WOOL, Blocks.BLACK_WOOL);
+        tags.add(BlockTags.PLANKS, Blocks.OAK_PLANKS, Blocks.SPRUCE_PLANKS, Blocks.BIRCH_PLANKS, Blocks.JUNGLE_PLANKS,
+                Blocks.ACACIA_PLANKS, Blocks.DARK_OAK_PLANKS);
+        tags.add(BlockTags.STONE_BRICKS, Blocks.STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS,
+                Blocks.CHISELED_STONE_BRICKS);
         tags.add(BlockTags.WOODEN_BUTTONS, Blocks.OAK_BUTTON);
         tags.addTag(BlockTags.BUTTONS, BlockTags.WOODEN_BUTTONS);
         tags.add(BlockTags.BUTTONS, Blocks.STONE_BUTTON);
-        tags.add(BlockTags.CARPETS,
-            Blocks.WHITE_CARPET,
-            Blocks.ORANGE_CARPET,
-            Blocks.MAGENTA_CARPET,
-            Blocks.LIGHT_BLUE_CARPET,
-            Blocks.YELLOW_CARPET,
-            Blocks.LIME_CARPET,
-            Blocks.PINK_CARPET,
-            Blocks.GRAY_CARPET,
-            Blocks.LIGHT_GRAY_CARPET,
-            Blocks.CYAN_CARPET,
-            Blocks.PURPLE_CARPET,
-            Blocks.BLUE_CARPET,
-            Blocks.BROWN_CARPET,
-            Blocks.GREEN_CARPET,
-            Blocks.RED_CARPET,
-            Blocks.BLACK_CARPET);
-        tags.add(BlockTags.WOODEN_DOORS,
-            Blocks.OAK_DOOR,
-            Blocks.SPRUCE_DOOR,
-            Blocks.BIRCH_DOOR,
-            Blocks.JUNGLE_DOOR,
-            Blocks.ACACIA_DOOR,
-            Blocks.DARK_OAK_DOOR);
-        tags.add(BlockTags.WOODEN_STAIRS,
-            Blocks.OAK_STAIRS,
-            Blocks.SPRUCE_STAIRS,
-            Blocks.BIRCH_STAIRS,
-            Blocks.JUNGLE_STAIRS,
-            Blocks.ACACIA_STAIRS,
-            Blocks.DARK_OAK_STAIRS);
-        tags.add(BlockTags.WOODEN_SLABS,
-            Blocks.OAK_SLAB,
-            Blocks.SPRUCE_SLAB,
-            Blocks.BIRCH_SLAB,
-            Blocks.JUNGLE_SLAB,
-            Blocks.ACACIA_SLAB,
-            Blocks.DARK_OAK_SLAB);
+        tags.add(BlockTags.CARPETS, Blocks.WHITE_CARPET, Blocks.ORANGE_CARPET, Blocks.MAGENTA_CARPET,
+                Blocks.LIGHT_BLUE_CARPET, Blocks.YELLOW_CARPET, Blocks.LIME_CARPET, Blocks.PINK_CARPET,
+                Blocks.GRAY_CARPET, Blocks.LIGHT_GRAY_CARPET, Blocks.CYAN_CARPET, Blocks.PURPLE_CARPET,
+                Blocks.BLUE_CARPET, Blocks.BROWN_CARPET, Blocks.GREEN_CARPET, Blocks.RED_CARPET, Blocks.BLACK_CARPET);
+        tags.add(BlockTags.WOODEN_DOORS, Blocks.OAK_DOOR, Blocks.SPRUCE_DOOR, Blocks.BIRCH_DOOR, Blocks.JUNGLE_DOOR,
+                Blocks.ACACIA_DOOR, Blocks.DARK_OAK_DOOR);
+        tags.add(BlockTags.WOODEN_STAIRS, Blocks.OAK_STAIRS, Blocks.SPRUCE_STAIRS, Blocks.BIRCH_STAIRS,
+                Blocks.JUNGLE_STAIRS, Blocks.ACACIA_STAIRS, Blocks.DARK_OAK_STAIRS);
+        tags.add(BlockTags.WOODEN_SLABS, Blocks.OAK_SLAB, Blocks.SPRUCE_SLAB, Blocks.BIRCH_SLAB, Blocks.JUNGLE_SLAB,
+                Blocks.ACACIA_SLAB, Blocks.DARK_OAK_SLAB);
         tags.addTag(BlockTags.DOORS, BlockTags.WOODEN_DOORS);
         tags.add(BlockTags.DOORS, Blocks.IRON_DOOR);
-        tags.add(BlockTags.SAPLINGS,
-            Blocks.OAK_SAPLING,
-            Blocks.SPRUCE_SAPLING,
-            Blocks.BIRCH_SAPLING,
-            Blocks.JUNGLE_SAPLING,
-            Blocks.ACACIA_SAPLING,
-            Blocks.DARK_OAK_SAPLING);
-        tags.add(BlockTags.DARK_OAK_LOGS,
-            Blocks.DARK_OAK_LOG,
-            Blocks.DARK_OAK_WOOD);
-        tags.add(BlockTags.OAK_LOGS,
-            Blocks.OAK_LOG,
-            Blocks.OAK_WOOD);
-        tags.add(BlockTags.ACACIA_LOGS,
-            Blocks.ACACIA_LOG,
-            Blocks.ACACIA_WOOD);
-        tags.add(BlockTags.BIRCH_LOGS,
-            Blocks.BIRCH_LOG,
-            Blocks.BIRCH_WOOD);
-        tags.add(BlockTags.JUNGLE_LOGS,
-            Blocks.JUNGLE_LOG,
-            Blocks.JUNGLE_WOOD);
-        tags.add(BlockTags.SPRUCE_LOGS,
-            Blocks.SPRUCE_LOG,
-            Blocks.SPRUCE_WOOD);
+        tags.add(BlockTags.SAPLINGS, Blocks.OAK_SAPLING, Blocks.SPRUCE_SAPLING, Blocks.BIRCH_SAPLING,
+                Blocks.JUNGLE_SAPLING, Blocks.ACACIA_SAPLING, Blocks.DARK_OAK_SAPLING);
+        tags.add(BlockTags.DARK_OAK_LOGS, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_WOOD);
+        tags.add(BlockTags.OAK_LOGS, Blocks.OAK_LOG, Blocks.OAK_WOOD);
+        tags.add(BlockTags.ACACIA_LOGS, Blocks.ACACIA_LOG, Blocks.ACACIA_WOOD);
+        tags.add(BlockTags.BIRCH_LOGS, Blocks.BIRCH_LOG, Blocks.BIRCH_WOOD);
+        tags.add(BlockTags.JUNGLE_LOGS, Blocks.JUNGLE_LOG, Blocks.JUNGLE_WOOD);
+        tags.add(BlockTags.SPRUCE_LOGS, Blocks.SPRUCE_LOG, Blocks.SPRUCE_WOOD);
         tags.addTag(BlockTags.LOGS, BlockTags.DARK_OAK_LOGS);
         tags.addTag(BlockTags.LOGS, BlockTags.OAK_LOGS);
         tags.addTag(BlockTags.LOGS, BlockTags.ACACIA_LOGS);
         tags.addTag(BlockTags.LOGS, BlockTags.BIRCH_LOGS);
         tags.addTag(BlockTags.LOGS, BlockTags.JUNGLE_LOGS);
         tags.addTag(BlockTags.LOGS, BlockTags.SPRUCE_LOGS);
-        tags.add(BlockTags.ANVIL,
-            Blocks.ANVIL,
-            Blocks.CHIPPED_ANVIL,
-            Blocks.DAMAGED_ANVIL);
-        tags.add(BlockTags.ENDERMAN_HOLDABLE,
-            Blocks.GRASS_BLOCK,
-            Blocks.DIRT,
-            Blocks.COARSE_DIRT,
-            Blocks.PODZOL,
-            Blocks.SAND,
-            Blocks.RED_SAND,
-            Blocks.GRAVEL,
-            Blocks.BROWN_MUSHROOM,
-            Blocks.RED_MUSHROOM,
-            Blocks.TNT,
-            Blocks.CACTUS,
-            Blocks.CLAY,
-            Blocks.CARVED_PUMPKIN,
-            Blocks.MELON,
-            Blocks.MYCELIUM,
-            Blocks.NETHERRACK);
-        tags.add(BlockTags.FLOWER_POTS,
-            Blocks.FLOWER_POT,
-            Blocks.POTTED_POPPY,
-            Blocks.POTTED_BLUE_ORCHID,
-            Blocks.POTTED_ALLIUM,
-            Blocks.POTTED_AZURE_BLUET,
-            Blocks.POTTED_RED_TULIP,
-            Blocks.POTTED_ORANGE_TULIP,
-            Blocks.POTTED_WHITE_TULIP,
-            Blocks.POTTED_PINK_TULIP,
-            Blocks.POTTED_OXEYE_DAISY,
-            Blocks.POTTED_DANDELION,
-            Blocks.POTTED_OAK_SAPLING,
-            Blocks.POTTED_SPRUCE_SAPLING,
-            Blocks.POTTED_BIRCH_SAPLING,
-            Blocks.POTTED_JUNGLE_SAPLING,
-            Blocks.POTTED_ACACIA_SAPLING,
-            Blocks.POTTED_DARK_OAK_SAPLING,
-            Blocks.POTTED_RED_MUSHROOM,
-            Blocks.POTTED_BROWN_MUSHROOM,
-            Blocks.POTTED_DEAD_BUSH,
-            Blocks.POTTED_FERN,
-            Blocks.POTTED_CACTUS);
-        tags.add(BlockTags.BANNERS,
-            Blocks.WHITE_BANNER,
-            Blocks.ORANGE_BANNER,
-            Blocks.MAGENTA_BANNER,
-            Blocks.LIGHT_BLUE_BANNER,
-            Blocks.YELLOW_BANNER,
-            Blocks.LIME_BANNER,
-            Blocks.PINK_BANNER,
-            Blocks.GRAY_BANNER,
-            Blocks.LIGHT_GRAY_BANNER,
-            Blocks.CYAN_BANNER,
-            Blocks.PURPLE_BANNER,
-            Blocks.BLUE_BANNER,
-            Blocks.BROWN_BANNER,
-            Blocks.GREEN_BANNER,
-            Blocks.RED_BANNER,
-            Blocks.BLACK_BANNER,
-            Blocks.WHITE_WALL_BANNER,
-            Blocks.ORANGE_WALL_BANNER,
-            Blocks.MAGENTA_WALL_BANNER,
-            Blocks.LIGHT_BLUE_WALL_BANNER,
-            Blocks.YELLOW_WALL_BANNER,
-            Blocks.LIME_WALL_BANNER,
-            Blocks.PINK_WALL_BANNER,
-            Blocks.GRAY_WALL_BANNER,
-            Blocks.LIGHT_GRAY_WALL_BANNER,
-            Blocks.CYAN_WALL_BANNER,
-            Blocks.PURPLE_WALL_BANNER,
-            Blocks.BLUE_WALL_BANNER,
-            Blocks.BROWN_WALL_BANNER,
-            Blocks.GREEN_WALL_BANNER,
-            Blocks.RED_WALL_BANNER,
-            Blocks.BLACK_WALL_BANNER);
+        tags.add(BlockTags.ANVIL, Blocks.ANVIL, Blocks.CHIPPED_ANVIL, Blocks.DAMAGED_ANVIL);
+        tags.add(BlockTags.ENDERMAN_HOLDABLE, Blocks.GRASS_BLOCK, Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.PODZOL,
+                Blocks.SAND, Blocks.RED_SAND, Blocks.GRAVEL, Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM, Blocks.TNT,
+                Blocks.CACTUS, Blocks.CLAY, Blocks.CARVED_PUMPKIN, Blocks.MELON, Blocks.MYCELIUM, Blocks.NETHERRACK);
+        tags.add(BlockTags.FLOWER_POTS, Blocks.FLOWER_POT, Blocks.POTTED_POPPY, Blocks.POTTED_BLUE_ORCHID,
+                Blocks.POTTED_ALLIUM, Blocks.POTTED_AZURE_BLUET, Blocks.POTTED_RED_TULIP, Blocks.POTTED_ORANGE_TULIP,
+                Blocks.POTTED_WHITE_TULIP, Blocks.POTTED_PINK_TULIP, Blocks.POTTED_OXEYE_DAISY, Blocks.POTTED_DANDELION,
+                Blocks.POTTED_OAK_SAPLING, Blocks.POTTED_SPRUCE_SAPLING, Blocks.POTTED_BIRCH_SAPLING,
+                Blocks.POTTED_JUNGLE_SAPLING, Blocks.POTTED_ACACIA_SAPLING, Blocks.POTTED_DARK_OAK_SAPLING,
+                Blocks.POTTED_RED_MUSHROOM, Blocks.POTTED_BROWN_MUSHROOM, Blocks.POTTED_DEAD_BUSH, Blocks.POTTED_FERN,
+                Blocks.POTTED_CACTUS);
+        tags.add(BlockTags.BANNERS, Blocks.WHITE_BANNER, Blocks.ORANGE_BANNER, Blocks.MAGENTA_BANNER,
+                Blocks.LIGHT_BLUE_BANNER, Blocks.YELLOW_BANNER, Blocks.LIME_BANNER, Blocks.PINK_BANNER,
+                Blocks.GRAY_BANNER, Blocks.LIGHT_GRAY_BANNER, Blocks.CYAN_BANNER, Blocks.PURPLE_BANNER,
+                Blocks.BLUE_BANNER, Blocks.BROWN_BANNER, Blocks.GREEN_BANNER, Blocks.RED_BANNER, Blocks.BLACK_BANNER,
+                Blocks.WHITE_WALL_BANNER, Blocks.ORANGE_WALL_BANNER, Blocks.MAGENTA_WALL_BANNER,
+                Blocks.LIGHT_BLUE_WALL_BANNER, Blocks.YELLOW_WALL_BANNER, Blocks.LIME_WALL_BANNER,
+                Blocks.PINK_WALL_BANNER, Blocks.GRAY_WALL_BANNER, Blocks.LIGHT_GRAY_WALL_BANNER,
+                Blocks.CYAN_WALL_BANNER, Blocks.PURPLE_WALL_BANNER, Blocks.BLUE_WALL_BANNER, Blocks.BROWN_WALL_BANNER,
+                Blocks.GREEN_WALL_BANNER, Blocks.RED_WALL_BANNER, Blocks.BLACK_WALL_BANNER);
         tags.add(BlockTags.WOODEN_PRESSURE_PLATES, Blocks.OAK_PRESSURE_PLATE);
-        tags.add(BlockTags.STAIRS,
-            Blocks.OAK_STAIRS,
-            Blocks.COBBLESTONE_STAIRS,
-            Blocks.SPRUCE_STAIRS,
-            Blocks.SANDSTONE_STAIRS,
-            Blocks.ACACIA_STAIRS,
-            Blocks.JUNGLE_STAIRS,
-            Blocks.BIRCH_STAIRS,
-            Blocks.DARK_OAK_STAIRS,
-            Blocks.NETHER_BRICK_STAIRS,
-            Blocks.STONE_BRICK_STAIRS,
-            Blocks.BRICK_STAIRS,
-            Blocks.PURPUR_STAIRS,
-            Blocks.QUARTZ_STAIRS,
-            Blocks.RED_SANDSTONE_STAIRS);
-        tags.add(BlockTags.SLABS,
-            Blocks.SMOOTH_STONE_SLAB,
-            Blocks.STONE_BRICK_SLAB,
-            Blocks.SANDSTONE_SLAB,
-            Blocks.ACACIA_SLAB,
-            Blocks.BIRCH_SLAB,
-            Blocks.DARK_OAK_SLAB,
-            Blocks.JUNGLE_SLAB,
-            Blocks.OAK_SLAB,
-            Blocks.SPRUCE_SLAB,
-            Blocks.PURPUR_SLAB,
-            Blocks.QUARTZ_SLAB,
-            Blocks.RED_SANDSTONE_SLAB,
-            Blocks.BRICK_SLAB,
-            Blocks.COBBLESTONE_SLAB,
-            Blocks.NETHER_BRICK_SLAB,
-            Blocks.PETRIFIED_OAK_SLAB);
-        tags.add(BlockTags.SAND,
-            Blocks.SAND,
-            Blocks.RED_SAND);
-        tags.add(BlockTags.RAILS,
-            Blocks.RAIL,
-            Blocks.POWERED_RAIL,
-            Blocks.DETECTOR_RAIL,
-            Blocks.ACTIVATOR_RAIL);
-        tags.add(BlockTags.ICE,
-            Blocks.ICE,
-            Blocks.PACKED_ICE,
-            Blocks.BLUE_ICE,
-            Blocks.FROSTED_ICE);
-        tags.add(BlockTags.VALID_SPAWN,
-            Blocks.GRASS_BLOCK,
-            Blocks.PODZOL);
-        tags.add(BlockTags.LEAVES,
-            Blocks.JUNGLE_LEAVES,
-            Blocks.OAK_LEAVES,
-            Blocks.SPRUCE_LEAVES,
-            Blocks.DARK_OAK_LEAVES,
-            Blocks.ACACIA_LEAVES,
-            Blocks.BIRCH_LEAVES);
-        tags.add(BlockTags.IMPERMEABLE,
-            Blocks.GLASS,
-            Blocks.WHITE_STAINED_GLASS,
-            Blocks.ORANGE_STAINED_GLASS,
-            Blocks.MAGENTA_STAINED_GLASS,
-            Blocks.LIGHT_BLUE_STAINED_GLASS,
-            Blocks.YELLOW_STAINED_GLASS,
-            Blocks.LIME_STAINED_GLASS,
-            Blocks.PINK_STAINED_GLASS,
-            Blocks.GRAY_STAINED_GLASS,
-            Blocks.LIGHT_GRAY_STAINED_GLASS,
-            Blocks.CYAN_STAINED_GLASS,
-            Blocks.PURPLE_STAINED_GLASS,
-            Blocks.BLUE_STAINED_GLASS,
-            Blocks.BROWN_STAINED_GLASS,
-            Blocks.GREEN_STAINED_GLASS,
-            Blocks.RED_STAINED_GLASS,
-            Blocks.BLACK_STAINED_GLASS);
+        tags.add(BlockTags.STAIRS, Blocks.OAK_STAIRS, Blocks.COBBLESTONE_STAIRS, Blocks.SPRUCE_STAIRS,
+                Blocks.SANDSTONE_STAIRS, Blocks.ACACIA_STAIRS, Blocks.JUNGLE_STAIRS, Blocks.BIRCH_STAIRS,
+                Blocks.DARK_OAK_STAIRS, Blocks.NETHER_BRICK_STAIRS, Blocks.STONE_BRICK_STAIRS, Blocks.BRICK_STAIRS,
+                Blocks.PURPUR_STAIRS, Blocks.QUARTZ_STAIRS, Blocks.RED_SANDSTONE_STAIRS);
+        tags.add(BlockTags.SLABS, Blocks.SMOOTH_STONE_SLAB, Blocks.STONE_BRICK_SLAB, Blocks.SANDSTONE_SLAB,
+                Blocks.ACACIA_SLAB, Blocks.BIRCH_SLAB, Blocks.DARK_OAK_SLAB, Blocks.JUNGLE_SLAB, Blocks.OAK_SLAB,
+                Blocks.SPRUCE_SLAB, Blocks.PURPUR_SLAB, Blocks.QUARTZ_SLAB, Blocks.RED_SANDSTONE_SLAB,
+                Blocks.BRICK_SLAB, Blocks.COBBLESTONE_SLAB, Blocks.NETHER_BRICK_SLAB, Blocks.PETRIFIED_OAK_SLAB);
+        tags.add(BlockTags.SAND, Blocks.SAND, Blocks.RED_SAND);
+        tags.add(BlockTags.RAILS, Blocks.RAIL, Blocks.POWERED_RAIL, Blocks.DETECTOR_RAIL, Blocks.ACTIVATOR_RAIL);
+        tags.add(BlockTags.ICE, Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.FROSTED_ICE);
+        tags.add(BlockTags.VALID_SPAWN, Blocks.GRASS_BLOCK, Blocks.PODZOL);
+        tags.add(BlockTags.LEAVES, Blocks.JUNGLE_LEAVES, Blocks.OAK_LEAVES, Blocks.SPRUCE_LEAVES,
+                Blocks.DARK_OAK_LEAVES, Blocks.ACACIA_LEAVES, Blocks.BIRCH_LEAVES);
+        tags.add(BlockTags.IMPERMEABLE, Blocks.GLASS, Blocks.WHITE_STAINED_GLASS, Blocks.ORANGE_STAINED_GLASS,
+                Blocks.MAGENTA_STAINED_GLASS, Blocks.LIGHT_BLUE_STAINED_GLASS, Blocks.YELLOW_STAINED_GLASS,
+                Blocks.LIME_STAINED_GLASS, Blocks.PINK_STAINED_GLASS, Blocks.GRAY_STAINED_GLASS,
+                Blocks.LIGHT_GRAY_STAINED_GLASS, Blocks.CYAN_STAINED_GLASS, Blocks.PURPLE_STAINED_GLASS,
+                Blocks.BLUE_STAINED_GLASS, Blocks.BROWN_STAINED_GLASS, Blocks.GREEN_STAINED_GLASS,
+                Blocks.RED_STAINED_GLASS, Blocks.BLACK_STAINED_GLASS);
         tags.add(BlockTags.WOODEN_TRAPDOORS, Blocks.OAK_TRAPDOOR);
         tags.addTag(BlockTags.TRAPDOORS, BlockTags.WOODEN_TRAPDOORS);
         tags.add(BlockTags.TRAPDOORS, Blocks.IRON_TRAPDOOR);
@@ -1588,37 +1451,14 @@ public class Protocol_1_12_2 extends Protocol_1_13 {
         copyBlocks(tags, blockTags, ItemTags.LEAVES, BlockTags.LEAVES);
         copyBlocks(tags, blockTags, ItemTags.WOODEN_TRAPDOORS, BlockTags.WOODEN_TRAPDOORS);
         copyBlocks(tags, blockTags, ItemTags.TRAPDOORS, BlockTags.TRAPDOORS);
-        tags.add(ItemTags.BANNERS,
-            Items.WHITE_BANNER,
-            Items.ORANGE_BANNER,
-            Items.MAGENTA_BANNER,
-            Items.LIGHT_BLUE_BANNER,
-            Items.YELLOW_BANNER,
-            Items.LIME_BANNER,
-            Items.PINK_BANNER,
-            Items.GRAY_BANNER,
-            Items.LIGHT_GRAY_BANNER,
-            Items.CYAN_BANNER,
-            Items.PURPLE_BANNER,
-            Items.BLUE_BANNER,
-            Items.BROWN_BANNER,
-            Items.GREEN_BANNER,
-            Items.RED_BANNER,
-            Items.BLACK_BANNER);
-        tags.add(ItemTags.BOATS,
-            Items.OAK_BOAT,
-            Items.SPRUCE_BOAT,
-            Items.BIRCH_BOAT,
-            Items.JUNGLE_BOAT,
-            Items.ACACIA_BOAT,
-            Items.DARK_OAK_BOAT);
-        tags.add(ItemTags.FISHES,
-            Items.COD,
-            Items.COOKED_COD,
-            Items.SALMON,
-            Items.COOKED_SALMON,
-            Items.PUFFERFISH,
-            Items.TROPICAL_FISH);
+        tags.add(ItemTags.BANNERS, Items.WHITE_BANNER, Items.ORANGE_BANNER, Items.MAGENTA_BANNER,
+                Items.LIGHT_BLUE_BANNER, Items.YELLOW_BANNER, Items.LIME_BANNER, Items.PINK_BANNER, Items.GRAY_BANNER,
+                Items.LIGHT_GRAY_BANNER, Items.CYAN_BANNER, Items.PURPLE_BANNER, Items.BLUE_BANNER, Items.BROWN_BANNER,
+                Items.GREEN_BANNER, Items.RED_BANNER, Items.BLACK_BANNER);
+        tags.add(ItemTags.BOATS, Items.OAK_BOAT, Items.SPRUCE_BOAT, Items.BIRCH_BOAT, Items.JUNGLE_BOAT,
+                Items.ACACIA_BOAT, Items.DARK_OAK_BOAT);
+        tags.add(ItemTags.FISHES, Items.COD, Items.COOKED_COD, Items.SALMON, Items.COOKED_SALMON, Items.PUFFERFISH,
+                Items.TROPICAL_FISH);
         super.addExtraItemTags(tags, blockTags);
     }
 

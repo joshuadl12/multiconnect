@@ -6,7 +6,8 @@ import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.biome.Biome;
 
 public final class Biomes_1_17_1 {
-    private Biomes_1_17_1() {}
+    private Biomes_1_17_1() {
+    }
 
     public static final RegistryKey<Biome> SNOWY_MOUNTAINS = create("snowy_mountains");
     public static final RegistryKey<Biome> MUSHROOM_FIELD_SHORE = create("mushroom_field_shore");
@@ -30,7 +31,8 @@ public final class Biomes_1_17_1 {
     public static final RegistryKey<Biome> GIANT_SPRUCE_TAIGA_HILLS = create("giant_spruce_taiga_hills");
     public static final RegistryKey<Biome> MODIFIED_GRAVELLY_MOUNTAINS = create("modified_gravelly_mountains");
     public static final RegistryKey<Biome> SHATTERED_SAVANNA_PLATEAU = create("shattered_savanna_plateau");
-    public static final RegistryKey<Biome> MODIFIED_WOODED_BADLANDS_PLATEAU = create("modified_wooded_badlands_plateau");
+    public static final RegistryKey<Biome> MODIFIED_WOODED_BADLANDS_PLATEAU = create(
+            "modified_wooded_badlands_plateau");
     public static final RegistryKey<Biome> MODIFIED_BADLANDS_PLATEAU = create("modified_badlands_plateau");
     public static final RegistryKey<Biome> BAMBOO_JUNGLE_HILLS = create("bamboo_jungle_hills");
     public static final RegistryKey<Biome> DEEP_WARM_OCEAN = create("deep_warm_ocean");

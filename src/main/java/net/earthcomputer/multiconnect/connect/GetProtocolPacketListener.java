@@ -18,18 +18,15 @@ public class GetProtocolPacketListener implements ClientQueryPacketListener {
         this.connection = connection;
     }
 
-    @Override
     public void onResponse(QueryResponseS2CPacket packet) {
         protocol = packet.getServerMetadata().getVersion().getProtocolVersion();
         completed = true;
         connection.disconnect(new TranslatableText("multiplayer.status.finished"));
     }
 
-    @Override
     public void onPong(QueryPongS2CPacket packet) {
     }
 
-    @Override
     public void onDisconnected(Text reason) {
         if (!completed) {
             completed = true;
@@ -37,7 +34,6 @@ public class GetProtocolPacketListener implements ClientQueryPacketListener {
         }
     }
 
-    @Override
     public ClientConnection getConnection() {
         return connection;
     }

@@ -78,10 +78,11 @@ public class ProtocolRegistry {
         translatorRegistry.registerOutboundTranslatorComplexType(registeringProtocol, type, translator);
     }
 
-
     private static int registeringProtocol;
+
     private static void register(int version, AbstractProtocol protocol) {
-        register(version, protocol, () -> {});
+        register(version, protocol, () -> {
+        });
     }
 
     private static void register(int version, AbstractProtocol protocol, Runnable registerTranslators) {

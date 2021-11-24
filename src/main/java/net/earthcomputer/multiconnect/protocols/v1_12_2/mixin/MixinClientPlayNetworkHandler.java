@@ -27,13 +27,22 @@ import java.util.List;
 @Mixin(ClientPlayNetworkHandler.class)
 public abstract class MixinClientPlayNetworkHandler {
 
-    @Shadow public abstract void onSynchronizeTags(SynchronizeTagsS2CPacket packet);
+    @Shadow
+    @Final
+    private MinecraftClient client = MinecraftClient.getInstance();
 
-    @Shadow public abstract void onSynchronizeRecipes(SynchronizeRecipesS2CPacket packet);
+    @Shadow
+    public abstract void onSynchronizeTags(SynchronizeTagsS2CPacket packet);
 
-    @Shadow public abstract void onCommandTree(CommandTreeS2CPacket packet);
+    @Shadow
+    public abstract void onSynchronizeRecipes(SynchronizeRecipesS2CPacket packet);
 
-    @Shadow @Final private RecipeManager recipeManager;
+    @Shadow
+    public abstract void onCommandTree(CommandTreeS2CPacket packet);
+
+    @Shadow
+    @Final
+    private RecipeManager recipeManager;
 
     @Inject(method = "onGameJoin", at = @At("RETURN"))
     private void onOnGameJoin(GameJoinS2CPacket packet, CallbackInfo ci) {
@@ -58,7 +67,8 @@ public abstract class MixinClientPlayNetworkHandler {
 
     @Inject(method = "onUnlockRecipes", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/util/thread/ThreadExecutor;)V", shift = At.Shift.AFTER))
     private void onOnUnlockRecipes(UnlockRecipesS2CPacket packet, CallbackInfo ci) {
-        if (ConnectionInfo.protocolVersion <= Protocols.V1_12_2 && packet.getAction() == UnlockRecipesS2CPacket.Action.INIT) {
+        if (ConnectionInfo.protocolVersion <= Protocols.V1_12_2
+                && packet.getAction() == UnlockRecipesS2CPacket.Action.INIT) {
             // ensure recipe lists are mutable
             UnlockRecipesS2CAccessor accessor = (UnlockRecipesS2CAccessor) packet;
             accessor.setRecipeIdsToInit(new ArrayList<>(packet.getRecipeIdsToInit()));
@@ -89,9 +99,9 @@ public abstract class MixinClientPlayNetworkHandler {
     @Inject(method = "onEntityStatus", at = @At("RETURN"))
     private void onOnEntityStatus(EntityStatusS2CPacket packet, CallbackInfo ci) {
         if (ConnectionInfo.protocolVersion <= Protocols.V1_12_2) {
-            assert MinecraftClient.getInstance().world != null;
-            if (packet.getEntity(MinecraftClient.getInstance().world) == MinecraftClient.getInstance().player
-                    && packet.getStatus() >= 24 && packet.getStatus() <= 28) {
+            assert this.client.world != null;
+            if (packet.getEntity(this.client.world) == this.client.player && packet.getStatus() >= 24
+                    && packet.getStatus() <= 28) {
                 TabCompletionManager.requestCommandList();
             }
         }

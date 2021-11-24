@@ -29,15 +29,22 @@ import java.util.List;
 @Mixin(DecoderHandler.class)
 public class MixinDecoderHandler {
 
-    @Shadow @Final private NetworkSide side;
+    @Shadow
+    @Final
+    private NetworkSide side;
 
-    @Unique private final ThreadLocal<ChannelHandlerContext> context = new ThreadLocal<>();
-    @Unique private final ThreadLocal<Integer> packetId = new ThreadLocal<>();
-    @Unique private final ThreadLocal<Boolean> canceled = new ThreadLocal<>();
-    @Unique private final ThreadLocal<TypedMap> userData = new ThreadLocal<>();
+    @Unique
+    private final ThreadLocal<ChannelHandlerContext> context = new ThreadLocal<>();
+    @Unique
+    private final ThreadLocal<Integer> packetId = new ThreadLocal<>();
+    @Unique
+    private final ThreadLocal<Boolean> canceled = new ThreadLocal<>();
+    @Unique
+    private final ThreadLocal<TypedMap> userData = new ThreadLocal<>();
 
     @Inject(method = "decode", at = @At(value = "INVOKE", target = "Lio/netty/channel/ChannelHandlerContext;channel()Lio/netty/channel/Channel;", ordinal = 0, remap = false), locals = LocalCapture.CAPTURE_FAILHARD)
-    private void onDecodeHead(ChannelHandlerContext context, ByteBuf buf, List<Object> output, CallbackInfo ci, int packetSize, PacketByteBuf packetBuf, int packetId) {
+    private void onDecodeHead(ChannelHandlerContext context, ByteBuf buf, List<Object> output, CallbackInfo ci,
+            int packetSize, PacketByteBuf packetBuf, int packetId) {
         this.context.set(context);
         this.packetId.set(packetId);
         this.canceled.set(false);
@@ -52,12 +59,14 @@ public class MixinDecoderHandler {
             return buf;
         }
 
-        //noinspection ConstantConditions
-        INetworkState state = (INetworkState) (Object) context.channel().attr(ClientConnection.PROTOCOL_ATTRIBUTE_KEY).get();
-        //noinspection ConstantConditions
-        var packetInfo = state.getPacketHandlers().get(NetworkSide.CLIENTBOUND).multiconnect_getPacketInfoById(packetId.get());
+        // noinspection ConstantConditions
+        INetworkState state = (INetworkState) (Object) context.channel().attr(ClientConnection.PROTOCOL_ATTRIBUTE_KEY)
+                .get();
+        // noinspection ConstantConditions
+        var packetInfo = state.getPacketHandlers().get(NetworkSide.CLIENTBOUND)
+                .multiconnect_getPacketInfoById(packetId.get());
         boolean versionMismatch = ConnectionInfo.protocolVersion != SharedConstants.getProtocolVersion();
-        
+
         if (versionMismatch && ConnectionInfo.protocol.shouldTranslateAsync(packetInfo.getPacketClass())) {
             byte[] data = new byte[buf.readableBytes()];
             buf.readBytes(data);

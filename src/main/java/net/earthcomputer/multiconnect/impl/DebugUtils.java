@@ -82,12 +82,14 @@ public class DebugUtils {
         for (int id : ((IIdList<BlockState>) Block.STATE_IDS).multiconnect_ids()) {
             BlockState state = Block.STATE_IDS.get(id);
             assert state != null;
-            StringBuilder sb = new StringBuilder().append(id).append(": ").append(Registry.BLOCK.getId(state.getBlock()));
+            StringBuilder sb = new StringBuilder().append(id).append(": ")
+                    .append(Registry.BLOCK.getId(state.getBlock()));
             if (!state.getEntries().isEmpty()) {
                 sb.append("[")
                         .append(state.getEntries().entrySet().stream()
                                 .sorted(Comparator.comparing(entry -> entry.getKey().getName()))
-                                .map(entry -> entry.getKey().getName() + "=" + Util.getValueAsString(entry.getKey(), entry.getValue()))
+                                .map(entry -> entry.getKey().getName() + "="
+                                        + Util.getValueAsString(entry.getKey(), entry.getValue()))
                                 .collect(Collectors.joining(",")))
                         .append("]");
             }
@@ -96,12 +98,14 @@ public class DebugUtils {
     }
 
     private static final Map<TrackedData<?>, String> TRACKED_DATA_NAMES = new IdentityHashMap<>();
+
     private static void computeTrackedDataNames() {
         Set<Class<?>> trackedDataHolders = new HashSet<>();
         for (Field field : EntityType.class.getFields()) {
             if (field.getType() == EntityType.class && Modifier.isStatic(field.getModifiers())) {
                 if (field.getGenericType() instanceof ParameterizedType type) {
-                    if (type.getActualTypeArguments()[0] instanceof Class<?> entityClass && Entity.class.isAssignableFrom(entityClass)) {
+                    if (type.getActualTypeArguments()[0] instanceof Class<?> entityClass
+                            && Entity.class.isAssignableFrom(entityClass)) {
                         for (; entityClass != Object.class; entityClass = entityClass.getSuperclass()) {
                             trackedDataHolders.add(entityClass);
                         }
@@ -143,9 +147,8 @@ public class DebugUtils {
             return "<no entries>";
         }
 
-        return allEntries.stream()
-                .sorted(Comparator.comparingInt(entry -> entry.getData().getId()))
-                .map(entry -> entry.getData().getId() + ": " + getTrackedDataName(entry.getData()) + " = " + entry.get())
+        return allEntries.stream().sorted(Comparator.comparingInt(entry -> entry.getData().getId())).map(
+                entry -> entry.getData().getId() + ": " + getTrackedDataName(entry.getData()) + " = " + entry.get())
                 .collect(Collectors.joining("\n"));
     }
 
@@ -160,12 +163,12 @@ public class DebugUtils {
         }
 
         String url = MULTICONNECT_ISSUE_URL.formatted(rareBugIdThatOccurred);
-        mc.inGameHud.getChatHud().addMessage(new TranslatableText("multiconnect.rareBug", new TranslatableText("multiconnect.rareBug.link")
-                .styled(style -> style.withUnderline(true)
-                        .withColor(Formatting.BLUE)
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(url)))
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))))
-            .formatted(Formatting.YELLOW));
+        mc.inGameHud.getChatHud().addMessage(new TranslatableText("multiconnect.rareBug",
+                new TranslatableText("multiconnect.rareBug.link")
+                        .styled(style -> style.withUnderline(true).withColor(Formatting.BLUE)
+                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(url)))
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))))
+                                        .formatted(Formatting.YELLOW));
     }
 
     public static boolean wasRareBugReportedRecently() {
@@ -174,11 +177,11 @@ public class DebugUtils {
 
     private static BaseText getRareBugText(int line) {
         String url = MULTICONNECT_ISSUE_URL.formatted(rareBugIdThatOccurred);
-        return new TranslatableText("multiconnect.rareBug", new TranslatableText("multiconnect.rareBug.link")
-                .styled(style -> style.withUnderline(true)
-                        .withColor(Formatting.BLUE)
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(url)))
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))));
+        return new TranslatableText("multiconnect.rareBug",
+                new TranslatableText("multiconnect.rareBug.link")
+                        .styled(style -> style.withUnderline(true).withColor(Formatting.BLUE)
+                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(url)))
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))));
     }
 
     public static Screen createRareBugScreen(Screen parentScreen) {
@@ -213,14 +216,16 @@ public class DebugUtils {
     }
 
     public static void logPacketDisconnectError(byte[] data, String... extraLines) {
-        LOGGER.error("!!!!!!!! Unexpected disconnect, please upload this error to " + MULTICONNECT_ISSUES_BASE_URL + " !!!!!!!!");
+        LOGGER.error("!!!!!!!! Unexpected disconnect, please upload this error to " + MULTICONNECT_ISSUES_BASE_URL
+                + " !!!!!!!!");
         LOGGER.error("It may be helpful if you also provide the server IP, but you are not obliged to do this.");
         LOGGER.error("Minecraft version: {}", SharedConstants.getGameVersion().getName());
         FabricLoader.getInstance().getModContainer("multiconnect").ifPresent(modContainer -> {
             String version = modContainer.getMetadata().getVersion().getFriendlyString();
             LOGGER.error("multiconnect version: {}", version);
         });
-        LOGGER.error("Server version: {} ({})", ConnectionInfo.protocolVersion, ConnectionMode.byValue(ConnectionInfo.protocolVersion).getName());
+        LOGGER.error("Server version: {} ({})", ConnectionInfo.protocolVersion,
+                ConnectionMode.byValue(ConnectionInfo.protocolVersion).getName());
         LOGGER.error("Server brand: {}", lastServerBrand);
         for (String extraLine : extraLines) {
             LOGGER.error(extraLine);
@@ -247,7 +252,8 @@ public class DebugUtils {
         channel.pipeline().context("decoder").fireChannelRead(Unpooled.wrappedBuffer(bytes));
     }
 
-    public static void handleChunkDataDump(ClientPlayNetworkHandler networkHandler, String base64, boolean compressed, int x, int z, @Nullable BitSet verticalStripBitmask) {
+    public static void handleChunkDataDump(ClientPlayNetworkHandler networkHandler, String base64, boolean compressed,
+            int x, int z, @Nullable BitSet verticalStripBitmask) {
         byte[] data = decode(base64, compressed);
         if (data == null) {
             return;
@@ -259,7 +265,8 @@ public class DebugUtils {
         ((IUserDataHolder) packet).multiconnect_setUserData(ChunkDataTranslator.DATA_TRANSLATED_KEY, false);
         ((ChunkDataAccessor) packet.getChunkData()).setSectionsData(data);
         if (verticalStripBitmask != null) {
-            ((IUserDataHolder) packet).multiconnect_setUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK, verticalStripBitmask);
+            ((IUserDataHolder) packet).multiconnect_setUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK,
+                    verticalStripBitmask);
         }
         ChunkDataTranslator.submit(packet);
     }

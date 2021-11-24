@@ -264,43 +264,23 @@ public class Protocol_1_8 extends Protocol_1_9 {
     private static final EntityDimensions DEFAULT_BOAT_DIMENSIONS = EntityType.BOAT.getDimensions();
 
     private static final BiMap<Potion, Integer> POTION_METAS = ImmutableBiMap.<Potion, Integer>builder()
-            .put(Potions.SWIFTNESS, 2)
-            .put(Potions.STRONG_SWIFTNESS, 2 | 32)
-            .put(Potions.LONG_SWIFTNESS, 2 | 64)
-            .put(Potions.SLOWNESS, 10)
-            .put(Potions.STRONG_SLOWNESS, 10 | 32)
-            .put(Potions.LONG_SLOWNESS, 10 | 64)
-            .put(Potions.STRENGTH, 9)
-            .put(Potions.STRONG_STRENGTH, 9 | 32)
-            .put(Potions.LONG_STRENGTH, 9 | 64)
-            .put(Potions.HEALING, 5)
-            .put(Potions.STRONG_HEALING, 5 | 32)
-            .put(Potions.HARMING, 12)
-            .put(Potions.STRONG_HARMING, 12 | 32)
-            .put(Potions.LEAPING, 11)
-            .put(Potions.STRONG_LEAPING, 11 | 32)
-            .put(Potions.LONG_LEAPING, 11 | 64)
-            .put(Potions.REGENERATION, 1)
-            .put(Potions.STRONG_REGENERATION, 1 | 32)
-            .put(Potions.LONG_REGENERATION, 1 | 64)
-            .put(Potions.FIRE_RESISTANCE, 3)
-            .put(Potions.LONG_FIRE_RESISTANCE, 3 | 64)
-            .put(Potions.WATER_BREATHING, 13)
-            .put(Potions.LONG_WATER_BREATHING, 13 | 64)
-            .put(Potions.INVISIBILITY, 14)
-            .put(Potions.LONG_INVISIBILITY, 14 | 64)
-            .put(Potions.NIGHT_VISION, 6)
-            .put(Potions.LONG_NIGHT_VISION, 6 | 64)
-            .put(Potions.WEAKNESS, 8)
-            .put(Potions.LONG_WEAKNESS, 8 | 64)
-            .put(Potions.POISON, 4)
-            .put(Potions.STRONG_POISON, 4 | 32)
-            .put(Potions.LONG_POISON, 4 | 64)
-            .build();
+            .put(Potions.SWIFTNESS, 2).put(Potions.STRONG_SWIFTNESS, 2 | 32).put(Potions.LONG_SWIFTNESS, 2 | 64)
+            .put(Potions.SLOWNESS, 10).put(Potions.STRONG_SLOWNESS, 10 | 32).put(Potions.LONG_SLOWNESS, 10 | 64)
+            .put(Potions.STRENGTH, 9).put(Potions.STRONG_STRENGTH, 9 | 32).put(Potions.LONG_STRENGTH, 9 | 64)
+            .put(Potions.HEALING, 5).put(Potions.STRONG_HEALING, 5 | 32).put(Potions.HARMING, 12)
+            .put(Potions.STRONG_HARMING, 12 | 32).put(Potions.LEAPING, 11).put(Potions.STRONG_LEAPING, 11 | 32)
+            .put(Potions.LONG_LEAPING, 11 | 64).put(Potions.REGENERATION, 1).put(Potions.STRONG_REGENERATION, 1 | 32)
+            .put(Potions.LONG_REGENERATION, 1 | 64).put(Potions.FIRE_RESISTANCE, 3)
+            .put(Potions.LONG_FIRE_RESISTANCE, 3 | 64).put(Potions.WATER_BREATHING, 13)
+            .put(Potions.LONG_WATER_BREATHING, 13 | 64).put(Potions.INVISIBILITY, 14)
+            .put(Potions.LONG_INVISIBILITY, 14 | 64).put(Potions.NIGHT_VISION, 6).put(Potions.LONG_NIGHT_VISION, 6 | 64)
+            .put(Potions.WEAKNESS, 8).put(Potions.LONG_WEAKNESS, 8 | 64).put(Potions.POISON, 4)
+            .put(Potions.STRONG_POISON, 4 | 32).put(Potions.LONG_POISON, 4 | 64).build();
 
     public static void registerTranslators() {
         ProtocolRegistry.registerInboundTranslator(ChunkData.class, buf -> {
-            BitSet verticalStripBitmask = ChunkDataTranslator.current().getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
+            BitSet verticalStripBitmask = ChunkDataTranslator.current()
+                    .getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
             int sectionCount = verticalStripBitmask.cardinality();
             Char2CharMap paletteMap = new Char2CharOpenHashMap();
             byte[] bitsPerBlock = new byte[sectionCount];
@@ -308,11 +288,12 @@ public class Protocol_1_8 extends Protocol_1_9 {
             char[] oldData = new char[4096];
             char[][] newData = new char[sectionCount][4096];
 
-            // read blocks from 1.8 data, build palettes and new data (index into palettes or raw, depending on size)
+            // read blocks from 1.8 data, build palettes and new data (index into palettes
+            // or raw, depending on size)
             for (int sec = 0; sec < sectionCount; sec++) {
                 for (int i = 0; i < 4096; i++) {
                     char stateId = (char) (buf.readUnsignedByte() | (buf.readUnsignedByte() << 8));
-                    paletteMap.putIfAbsent(stateId, (char)paletteMap.size());
+                    paletteMap.putIfAbsent(stateId, (char) paletteMap.size());
                     oldData[i] = stateId;
                 }
 
@@ -359,7 +340,7 @@ public class Protocol_1_8 extends Protocol_1_9 {
             for (int sec = 0; sec < sectionCount; sec++) {
                 // palette
                 int secBitsPerBlock = bitsPerBlock[sec];
-                buf.pendingRead(Byte.class, (byte)secBitsPerBlock);
+                buf.pendingRead(Byte.class, (byte) secBitsPerBlock);
                 buf.pendingRead(VarInt.class, new VarInt(palette[sec].length));
                 for (char pal : palette[sec]) {
                     buf.pendingRead(VarInt.class, new VarInt(pal));
@@ -372,7 +353,7 @@ public class Protocol_1_8 extends Protocol_1_9 {
                 for (int i = 0; i < 4096; i++) {
                     int bit = i * secBitsPerBlock;
                     int offset = bit & 63;
-                    val |= (long)data[i] << offset;
+                    val |= (long) data[i] << offset;
                     if (offset + secBitsPerBlock >= 64 || i == 4095) {
                         packedData[packedDataIndex++] = val;
                         val = data[i] >> (64 - offset);
@@ -422,13 +403,15 @@ public class Protocol_1_8 extends Protocol_1_9 {
             String soundId = buf.readString(256);
 
             SoundEvent soundEvent = SoundData_1_8.getInstance().getSoundEvent(soundId);
-            if (soundEvent == null) soundEvent = SoundEvents.AMBIENT_CAVE;
+            if (soundEvent == null)
+                soundEvent = SoundEvents.AMBIENT_CAVE;
             Identifier eventId = Registry.SOUND_EVENT.getId(soundEvent);
             assert eventId != null;
             buf.pendingRead(String.class, eventId.getPath());
 
             SoundCategory category = SoundData_1_8.getInstance().getCategory(soundId);
-            if (category == null) category = SoundCategory.MASTER;
+            if (category == null)
+                category = SoundCategory.MASTER;
             buf.pendingRead(SoundCategory.class, category);
 
             buf.applyPendingReads();
@@ -451,11 +434,11 @@ public class Protocol_1_8 extends Protocol_1_9 {
             buf.disablePassthroughMode();
             int oldSlot = buf.readShort();
             EquipmentSlot newSlot = switch (oldSlot) {
-                default -> EquipmentSlot.MAINHAND;
-                case 1 -> EquipmentSlot.FEET;
-                case 2 -> EquipmentSlot.LEGS;
-                case 3 -> EquipmentSlot.CHEST;
-                case 4 -> EquipmentSlot.HEAD;
+            default -> EquipmentSlot.MAINHAND;
+            case 1 -> EquipmentSlot.FEET;
+            case 2 -> EquipmentSlot.LEGS;
+            case 3 -> EquipmentSlot.CHEST;
+            case 4 -> EquipmentSlot.HEAD;
             };
             buf.pendingRead(EquipmentSlot.class, newSlot);
             buf.applyPendingReads();
@@ -464,18 +447,18 @@ public class Protocol_1_8 extends Protocol_1_9 {
             buf.enablePassthroughMode();
             buf.readVarInt(); // entity id
             buf.disablePassthroughMode();
-            buf.pendingRead(Short.class, (short)((short)buf.readByte() * 128)); // x
-            buf.pendingRead(Short.class, (short)((short)buf.readByte() * 128)); // y
-            buf.pendingRead(Short.class, (short)((short)buf.readByte() * 128)); // z
+            buf.pendingRead(Short.class, (short) ((short) buf.readByte() * 128)); // x
+            buf.pendingRead(Short.class, (short) ((short) buf.readByte() * 128)); // y
+            buf.pendingRead(Short.class, (short) ((short) buf.readByte() * 128)); // z
             buf.applyPendingReads();
         });
         ProtocolRegistry.registerInboundTranslator(EntityS2CPacket.RotateAndMoveRelative.class, buf -> {
             buf.enablePassthroughMode();
             buf.readVarInt(); // entity id
             buf.disablePassthroughMode();
-            buf.pendingRead(Short.class, (short)((short)buf.readByte() * 128)); // x
-            buf.pendingRead(Short.class, (short)((short)buf.readByte() * 128)); // y
-            buf.pendingRead(Short.class, (short)((short)buf.readByte() * 128)); // z
+            buf.pendingRead(Short.class, (short) ((short) buf.readByte() * 128)); // x
+            buf.pendingRead(Short.class, (short) ((short) buf.readByte() * 128)); // y
+            buf.pendingRead(Short.class, (short) ((short) buf.readByte() * 128)); // z
             buf.applyPendingReads();
         });
         ProtocolRegistry.registerInboundTranslator(EntityPositionS2CPacket.class, buf -> {
@@ -504,7 +487,11 @@ public class Protocol_1_8 extends Protocol_1_9 {
             buf.readFloat(); // pitch
             buf.readUnsignedByte(); // flags
             buf.disablePassthroughMode();
-            buf.pendingRead(VarInt.class, new VarInt(FAKE_TELEPORT_ID_COUNTER.getAndIncrement())); // teleport id (used for teleport confirm which doesn't exist in 1.8)
+            buf.pendingRead(VarInt.class, new VarInt(FAKE_TELEPORT_ID_COUNTER.getAndIncrement())); // teleport id (used
+                                                                                                   // for teleport
+                                                                                                   // confirm which
+                                                                                                   // doesn't exist in
+                                                                                                   // 1.8)
             buf.applyPendingReads();
         });
         ProtocolRegistry.registerInboundTranslator(ExperienceOrbSpawnS2CPacket.class, buf -> {
@@ -552,9 +539,9 @@ public class Protocol_1_8 extends Protocol_1_9 {
             int entityData = buf.readInt();
             buf.disablePassthroughMode();
             if (entityData <= 0) {
-                buf.pendingRead(Short.class, (short)0); // speed x
-                buf.pendingRead(Short.class, (short)0); // speed y
-                buf.pendingRead(Short.class, (short)0); // speed z
+                buf.pendingRead(Short.class, (short) 0); // speed x
+                buf.pendingRead(Short.class, (short) 0); // speed y
+                buf.pendingRead(Short.class, (short) 0); // speed z
             }
             buf.applyPendingReads();
         });
@@ -618,10 +605,11 @@ public class Protocol_1_8 extends Protocol_1_9 {
             buf.pendingRead(Integer.class, eventId);
             buf.applyPendingReads();
         });
-        ProtocolRegistry.registerInboundTranslatorComplexType(new CustomPayload(Protocol_1_13_2.CUSTOM_PAYLOAD_OPEN_BOOK), buf -> {
-            buf.pendingRead(Hand.class, Hand.MAIN_HAND);
-            buf.applyPendingReads();
-        });
+        ProtocolRegistry.registerInboundTranslatorComplexType(
+                new CustomPayload(Protocol_1_13_2.CUSTOM_PAYLOAD_OPEN_BOOK), buf -> {
+                    buf.pendingRead(Hand.class, Hand.MAIN_HAND);
+                    buf.applyPendingReads();
+                });
 
         ProtocolRegistry.registerOutboundTranslator(HandSwingC2SPacket.class, buf -> {
             buf.skipWrite(Hand.class);
@@ -634,13 +622,13 @@ public class Protocol_1_8 extends Protocol_1_9 {
             Supplier<SlotActionType> mode = buf.skipWrite(SlotActionType.class);
             buf.pendingWrite(Byte.class, () -> {
                 return switch (mode.get()) {
-                    default -> (byte) 0;
-                    case QUICK_MOVE -> (byte) 1;
-                    case SWAP -> (byte) 2;
-                    case CLONE -> (byte) 3;
-                    case THROW -> (byte) 4;
-                    case QUICK_CRAFT -> (byte) 5;
-                    case PICKUP_ALL -> (byte) 6;
+                default -> (byte) 0;
+                case QUICK_MOVE -> (byte) 1;
+                case SWAP -> (byte) 2;
+                case CLONE -> (byte) 3;
+                case THROW -> (byte) 4;
+                case QUICK_CRAFT -> (byte) 5;
+                case PICKUP_ALL -> (byte) 6;
                 };
             }, (Consumer<Byte>) buf::writeByte);
         });
@@ -648,7 +636,7 @@ public class Protocol_1_8 extends Protocol_1_9 {
             buf.passthroughWrite(String.class); // language
             buf.passthroughWrite(Byte.class); // render distance
             Supplier<ChatVisibility> chatVisibility = buf.skipWrite(ChatVisibility.class);
-            buf.pendingWrite(Byte.class, () -> (byte)chatVisibility.get().getId(), (Consumer<Byte>) buf::writeByte);
+            buf.pendingWrite(Byte.class, () -> (byte) chatVisibility.get().getId(), (Consumer<Byte>) buf::writeByte);
             buf.passthroughWrite(Boolean.class); // chat colors
             buf.passthroughWrite(Byte.class); // player model bitmask
             buf.skipWrite(Arm.class); // main arm
@@ -656,7 +644,8 @@ public class Protocol_1_8 extends Protocol_1_9 {
         ProtocolRegistry.registerOutboundTranslator(ClientCommandC2SPacket.class, buf -> {
             buf.passthroughWrite(VarInt.class); // entity id
             Supplier<ClientCommandC2SPacket.Mode> mode = buf.skipWrite(ClientCommandC2SPacket.Mode.class);
-            buf.pendingWrite(ClientCommandMode_1_8.class, () -> ClientCommandMode_1_8.fromNew(mode.get()), buf::writeEnumConstant);
+            buf.pendingWrite(ClientCommandMode_1_8.class, () -> ClientCommandMode_1_8.fromNew(mode.get()),
+                    buf::writeEnumConstant);
         });
         ProtocolRegistry.registerOutboundTranslator(RequestCommandCompletionsC2SPacket.class, buf -> {
             buf.passthroughWrite(String.class); // command
@@ -666,26 +655,32 @@ public class Protocol_1_8 extends Protocol_1_9 {
             buf.passthroughWrite(BlockPos.class); // pos
             for (int i = 0; i < 4; i++) {
                 Supplier<String> line = buf.skipWrite(String.class);
-                buf.pendingWrite(String.class, () -> Text.Serializer.toJson(new LiteralText(line.get())), buf::writeString);
+                buf.pendingWrite(String.class, () -> Text.Serializer.toJson(new LiteralText(line.get())),
+                        buf::writeString);
             }
         });
         ProtocolRegistry.registerOutboundTranslator(PlayerInteractEntityC2SPacket.class, buf -> {
             buf.passthroughWrite(VarInt.class); // entity id
-            Supplier<PlayerInteractEntityC2SPacket.InteractType> type = buf.passthroughWrite(PlayerInteractEntityC2SPacket.InteractType.class);
+            Supplier<PlayerInteractEntityC2SPacket.InteractType> type = buf
+                    .passthroughWrite(PlayerInteractEntityC2SPacket.InteractType.class);
             buf.whenWrite(() -> {
                 if (type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT_AT) {
                     buf.passthroughWrite(Float.class); // hit x
                     buf.passthroughWrite(Float.class); // hit y
                     buf.passthroughWrite(Float.class); // hit z
                 }
-                if (type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT || type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT_AT) {
+                if (type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT
+                        || type.get() == PlayerInteractEntityC2SPacket.InteractType.INTERACT_AT) {
                     buf.skipWrite(Hand.class); // hand
                 }
             });
         });
         ProtocolRegistry.registerOutboundTranslator(CustomPayloadC2SPacket_1_12_2.class, buf -> {
             Supplier<String> channel = buf.skipWrite(String.class);
-            buf.pendingWrite(String.class, () -> "MC|AdvCmd".equals(channel.get()) || "MC|AutoCmd".equals(channel.get()) ? "MC|AdvCdm" : channel.get(), buf::writeString);
+            buf.pendingWrite(String.class,
+                    () -> "MC|AdvCmd".equals(channel.get()) || "MC|AutoCmd".equals(channel.get()) ? "MC|AdvCdm"
+                            : channel.get(),
+                    buf::writeString);
         });
         ProtocolRegistry.registerOutboundTranslatorComplexType(new StringCustomPayload("MC|AutoCmd"), buf -> {
             buf.pendingWrite(Byte.class, () -> (byte) 0, (Consumer<Byte>) buf::writeByte); // block or minecart (block)
@@ -856,64 +851,121 @@ public class Protocol_1_8 extends Protocol_1_9 {
         remove(packets, EntityStatusEffectS2CPacket.class);
         packets.add(0, PacketInfo.of(KeepAliveS2CPacket.class, KeepAliveS2CPacket::new));
         insertAfter(packets, KeepAliveS2CPacket.class, PacketInfo.of(GameJoinS2CPacket.class, GameJoinS2CPacket::new));
-        insertAfter(packets, GameJoinS2CPacket.class, PacketInfo.of(GameMessageS2CPacket.class, GameMessageS2CPacket::new));
-        insertAfter(packets, GameMessageS2CPacket.class, PacketInfo.of(WorldTimeUpdateS2CPacket.class, WorldTimeUpdateS2CPacket::new));
-        insertAfter(packets, WorldTimeUpdateS2CPacket.class, PacketInfo.of(EntityEquipmentUpdateS2CPacket.class, EntityEquipmentUpdateS2CPacket::new));
-        insertAfter(packets, EntityEquipmentUpdateS2CPacket.class, PacketInfo.of(PlayerSpawnPositionS2CPacket.class, PlayerSpawnPositionS2CPacket::new));
-        insertAfter(packets, PlayerSpawnPositionS2CPacket.class, PacketInfo.of(HealthUpdateS2CPacket.class, HealthUpdateS2CPacket::new));
-        insertAfter(packets, HealthUpdateS2CPacket.class, PacketInfo.of(PlayerRespawnS2CPacket.class, PlayerRespawnS2CPacket::new));
-        insertAfter(packets, PlayerRespawnS2CPacket.class, PacketInfo.of(PlayerPositionLookS2CPacket.class, PlayerPositionLookS2CPacket::new));
-        insertAfter(packets, PlayerPositionLookS2CPacket.class, PacketInfo.of(UpdateSelectedSlotS2CPacket.class, UpdateSelectedSlotS2CPacket::new));
-        insertAfter(packets, UpdateSelectedSlotS2CPacket.class, PacketInfo.of(UseBedS2CPacket.class, UseBedS2CPacket::new));
-        insertAfter(packets, UseBedS2CPacket.class, PacketInfo.of(EntityAnimationS2CPacket.class, EntityAnimationS2CPacket::new));
-        insertAfter(packets, EntityAnimationS2CPacket.class, PacketInfo.of(PlayerSpawnS2CPacket.class, PlayerSpawnS2CPacket::new));
-        insertAfter(packets, PlayerSpawnS2CPacket.class, PacketInfo.of(ItemPickupAnimationS2CPacket.class, ItemPickupAnimationS2CPacket::new));
-        insertAfter(packets, PaintingSpawnS2CPacket.class, PacketInfo.of(ExperienceOrbSpawnS2CPacket.class, ExperienceOrbSpawnS2CPacket::new));
-        insertAfter(packets, ExperienceOrbSpawnS2CPacket.class, PacketInfo.of(EntityVelocityUpdateS2CPacket.class, EntityVelocityUpdateS2CPacket::new));
-        insertAfter(packets, EntityVelocityUpdateS2CPacket.class, PacketInfo.of(EntitiesDestroyS2CPacket.class, EntitiesDestroyS2CPacket::new));
-        insertAfter(packets, EntitiesDestroyS2CPacket.class, PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
-        insertAfter(packets, EntityS2CPacket_1_16_5.class, PacketInfo.of(EntityS2CPacket.MoveRelative.class, EntityS2CPacket.MoveRelative::read));
-        insertAfter(packets, EntityS2CPacket.MoveRelative.class, PacketInfo.of(EntityS2CPacket.Rotate.class, EntityS2CPacket.Rotate::read));
-        insertAfter(packets, EntityS2CPacket.Rotate.class, PacketInfo.of(EntityS2CPacket.RotateAndMoveRelative.class, EntityS2CPacket.RotateAndMoveRelative::read));
-        insertAfter(packets, EntityS2CPacket.RotateAndMoveRelative.class, PacketInfo.of(EntityPositionS2CPacket.class, EntityPositionS2CPacket::new));
-        insertAfter(packets, EntityPositionS2CPacket.class, PacketInfo.of(EntitySetHeadYawS2CPacket.class, EntitySetHeadYawS2CPacket::new));
-        insertAfter(packets, EntitySetHeadYawS2CPacket.class, PacketInfo.of(EntityStatusS2CPacket.class, EntityStatusS2CPacket::new));
-        insertAfter(packets, EntityStatusS2CPacket.class, PacketInfo.of(EntityAttachS2CPacket_1_8.class, EntityAttachS2CPacket_1_8::new));
-        insertAfter(packets, EntityAttachS2CPacket_1_8.class, PacketInfo.of(EntityTrackerUpdateS2CPacket.class, EntityTrackerUpdateS2CPacket::new));
-        insertAfter(packets, EntityTrackerUpdateS2CPacket.class, PacketInfo.of(EntityStatusEffectS2CPacket.class, EntityStatusEffectS2CPacket::new));
-        insertAfter(packets, EntityStatusEffectS2CPacket.class, PacketInfo.of(RemoveEntityStatusEffectS2CPacket.class, RemoveEntityStatusEffectS2CPacket::new));
-        insertAfter(packets, RemoveEntityStatusEffectS2CPacket.class, PacketInfo.of(ExperienceBarUpdateS2CPacket.class, ExperienceBarUpdateS2CPacket::new));
-        insertAfter(packets, ExperienceBarUpdateS2CPacket.class, PacketInfo.of(EntityAttributesS2CPacket.class, EntityAttributesS2CPacket::new));
-        insertAfter(packets, EntityAttributesS2CPacket.class, PacketInfo.of(ChunkDataS2CPacket.class, ChunkDataS2CPacket::new));
-        insertAfter(packets, ChunkDataS2CPacket.class, PacketInfo.of(ChunkDeltaUpdateS2CPacket_1_16_1.class, ChunkDeltaUpdateS2CPacket_1_16_1::new));
-        insertAfter(packets, ChunkDeltaUpdateS2CPacket_1_16_1.class, PacketInfo.of(BlockUpdateS2CPacket.class, BlockUpdateS2CPacket::new));
-        insertAfter(packets, BlockUpdateS2CPacket.class, PacketInfo.of(BlockEventS2CPacket.class, BlockEventS2CPacket::new));
-        insertAfter(packets, BlockBreakingProgressS2CPacket.class, PacketInfo.of(BulkChunkDataS2CPacket_1_8.class, BulkChunkDataS2CPacket_1_8::new));
-        insertAfter(packets, BulkChunkDataS2CPacket_1_8.class, PacketInfo.of(ExplosionS2CPacket.class, ExplosionS2CPacket::new));
-        insertAfter(packets, ExplosionS2CPacket.class, PacketInfo.of(WorldEventS2CPacket.class, WorldEventS2CPacket::new));
-        insertAfter(packets, WorldEventS2CPacket.class, PacketInfo.of(PlaySoundIdS2CPacket.class, PlaySoundIdS2CPacket::new));
-        insertAfter(packets, PlaySoundIdS2CPacket.class, PacketInfo.of(ParticleS2CPacket.class, ParticleS2CPacket::new));
-        insertAfter(packets, ParticleS2CPacket.class, PacketInfo.of(GameStateChangeS2CPacket.class, GameStateChangeS2CPacket::new));
-        insertAfter(packets, GameStateChangeS2CPacket.class, PacketInfo.of(EntitySpawnGlobalS2CPacket_1_15_2.class, EntitySpawnGlobalS2CPacket_1_15_2::new));
-        insertAfter(packets, EntitySpawnGlobalS2CPacket_1_15_2.class, PacketInfo.of(GuiOpenS2CPacket_1_13_2.class, GuiOpenS2CPacket_1_13_2::new));
-        insertAfter(packets, CloseScreenS2CPacket.class, PacketInfo.of(ScreenHandlerSlotUpdateS2CPacket.class, ScreenHandlerSlotUpdateS2CPacket::new));
-        insertAfter(packets, ScreenHandlerPropertyUpdateS2CPacket.class, PacketInfo.of(AckScreenActionS2CPacket_1_16_5.class, AckScreenActionS2CPacket_1_16_5::new));
-        insertAfter(packets, AckScreenActionS2CPacket_1_16_5.class, PacketInfo.of(UpdateSignS2CPacket.class, UpdateSignS2CPacket::new));
-        insertAfter(packets, MapUpdateS2CPacket_1_16_5.class, PacketInfo.of(BlockEntityUpdateS2CPacket.class, BlockEntityUpdateS2CPacket::new));
-        insertAfter(packets, SignEditorOpenS2CPacket.class, PacketInfo.of(StatisticsS2CPacket.class, StatisticsS2CPacket::new));
-        insertAfter(packets, StatisticsS2CPacket.class, PacketInfo.of(PlayerListS2CPacket.class, PlayerListS2CPacket::new));
-        insertAfter(packets, PlayerAbilitiesS2CPacket.class, PacketInfo.of(CommandSuggestionsS2CPacket.class, CommandSuggestionsS2CPacket::new));
-        insertAfter(packets, CommandSuggestionsS2CPacket.class, PacketInfo.of(ScoreboardObjectiveUpdateS2CPacket.class, ScoreboardObjectiveUpdateS2CPacket::new));
-        insertAfter(packets, ScoreboardObjectiveUpdateS2CPacket.class, PacketInfo.of(ScoreboardPlayerUpdateS2CPacket.class, ScoreboardPlayerUpdateS2CPacket::new));
-        insertAfter(packets, ScoreboardPlayerUpdateS2CPacket.class, PacketInfo.of(ScoreboardDisplayS2CPacket.class, ScoreboardDisplayS2CPacket::new));
+        insertAfter(packets, GameJoinS2CPacket.class,
+                PacketInfo.of(GameMessageS2CPacket.class, GameMessageS2CPacket::new));
+        insertAfter(packets, GameMessageS2CPacket.class,
+                PacketInfo.of(WorldTimeUpdateS2CPacket.class, WorldTimeUpdateS2CPacket::new));
+        insertAfter(packets, WorldTimeUpdateS2CPacket.class,
+                PacketInfo.of(EntityEquipmentUpdateS2CPacket.class, EntityEquipmentUpdateS2CPacket::new));
+        insertAfter(packets, EntityEquipmentUpdateS2CPacket.class,
+                PacketInfo.of(PlayerSpawnPositionS2CPacket.class, PlayerSpawnPositionS2CPacket::new));
+        insertAfter(packets, PlayerSpawnPositionS2CPacket.class,
+                PacketInfo.of(HealthUpdateS2CPacket.class, HealthUpdateS2CPacket::new));
+        insertAfter(packets, HealthUpdateS2CPacket.class,
+                PacketInfo.of(PlayerRespawnS2CPacket.class, PlayerRespawnS2CPacket::new));
+        insertAfter(packets, PlayerRespawnS2CPacket.class,
+                PacketInfo.of(PlayerPositionLookS2CPacket.class, PlayerPositionLookS2CPacket::new));
+        insertAfter(packets, PlayerPositionLookS2CPacket.class,
+                PacketInfo.of(UpdateSelectedSlotS2CPacket.class, UpdateSelectedSlotS2CPacket::new));
+        insertAfter(packets, UpdateSelectedSlotS2CPacket.class,
+                PacketInfo.of(UseBedS2CPacket.class, UseBedS2CPacket::new));
+        insertAfter(packets, UseBedS2CPacket.class,
+                PacketInfo.of(EntityAnimationS2CPacket.class, EntityAnimationS2CPacket::new));
+        insertAfter(packets, EntityAnimationS2CPacket.class,
+                PacketInfo.of(PlayerSpawnS2CPacket.class, PlayerSpawnS2CPacket::new));
+        insertAfter(packets, PlayerSpawnS2CPacket.class,
+                PacketInfo.of(ItemPickupAnimationS2CPacket.class, ItemPickupAnimationS2CPacket::new));
+        insertAfter(packets, PaintingSpawnS2CPacket.class,
+                PacketInfo.of(ExperienceOrbSpawnS2CPacket.class, ExperienceOrbSpawnS2CPacket::new));
+        insertAfter(packets, ExperienceOrbSpawnS2CPacket.class,
+                PacketInfo.of(EntityVelocityUpdateS2CPacket.class, EntityVelocityUpdateS2CPacket::new));
+        insertAfter(packets, EntityVelocityUpdateS2CPacket.class,
+                PacketInfo.of(EntitiesDestroyS2CPacket.class, EntitiesDestroyS2CPacket::new));
+        insertAfter(packets, EntitiesDestroyS2CPacket.class,
+                PacketInfo.of(EntityS2CPacket_1_16_5.class, EntityS2CPacket_1_16_5::new));
+        insertAfter(packets, EntityS2CPacket_1_16_5.class,
+                PacketInfo.of(EntityS2CPacket.MoveRelative.class, EntityS2CPacket.MoveRelative::read));
+        insertAfter(packets, EntityS2CPacket.MoveRelative.class,
+                PacketInfo.of(EntityS2CPacket.Rotate.class, EntityS2CPacket.Rotate::read));
+        insertAfter(packets, EntityS2CPacket.Rotate.class, PacketInfo.of(EntityS2CPacket.RotateAndMoveRelative.class,
+                EntityS2CPacket.RotateAndMoveRelative::read));
+        insertAfter(packets, EntityS2CPacket.RotateAndMoveRelative.class,
+                PacketInfo.of(EntityPositionS2CPacket.class, EntityPositionS2CPacket::new));
+        insertAfter(packets, EntityPositionS2CPacket.class,
+                PacketInfo.of(EntitySetHeadYawS2CPacket.class, EntitySetHeadYawS2CPacket::new));
+        insertAfter(packets, EntitySetHeadYawS2CPacket.class,
+                PacketInfo.of(EntityStatusS2CPacket.class, EntityStatusS2CPacket::new));
+        insertAfter(packets, EntityStatusS2CPacket.class,
+                PacketInfo.of(EntityAttachS2CPacket_1_8.class, EntityAttachS2CPacket_1_8::new));
+        insertAfter(packets, EntityAttachS2CPacket_1_8.class,
+                PacketInfo.of(EntityTrackerUpdateS2CPacket.class, EntityTrackerUpdateS2CPacket::new));
+        insertAfter(packets, EntityTrackerUpdateS2CPacket.class,
+                PacketInfo.of(EntityStatusEffectS2CPacket.class, EntityStatusEffectS2CPacket::new));
+        insertAfter(packets, EntityStatusEffectS2CPacket.class,
+                PacketInfo.of(RemoveEntityStatusEffectS2CPacket.class, RemoveEntityStatusEffectS2CPacket::new));
+        insertAfter(packets, RemoveEntityStatusEffectS2CPacket.class,
+                PacketInfo.of(ExperienceBarUpdateS2CPacket.class, ExperienceBarUpdateS2CPacket::new));
+        insertAfter(packets, ExperienceBarUpdateS2CPacket.class,
+                PacketInfo.of(EntityAttributesS2CPacket.class, EntityAttributesS2CPacket::new));
+        insertAfter(packets, EntityAttributesS2CPacket.class,
+                PacketInfo.of(ChunkDataS2CPacket.class, ChunkDataS2CPacket::new));
+        insertAfter(packets, ChunkDataS2CPacket.class,
+                PacketInfo.of(ChunkDeltaUpdateS2CPacket_1_16_1.class, ChunkDeltaUpdateS2CPacket_1_16_1::new));
+        insertAfter(packets, ChunkDeltaUpdateS2CPacket_1_16_1.class,
+                PacketInfo.of(BlockUpdateS2CPacket.class, BlockUpdateS2CPacket::new));
+        insertAfter(packets, BlockUpdateS2CPacket.class,
+                PacketInfo.of(BlockEventS2CPacket.class, BlockEventS2CPacket::new));
+        insertAfter(packets, BlockBreakingProgressS2CPacket.class,
+                PacketInfo.of(BulkChunkDataS2CPacket_1_8.class, BulkChunkDataS2CPacket_1_8::new));
+        insertAfter(packets, BulkChunkDataS2CPacket_1_8.class,
+                PacketInfo.of(ExplosionS2CPacket.class, ExplosionS2CPacket::new));
+        insertAfter(packets, ExplosionS2CPacket.class,
+                PacketInfo.of(WorldEventS2CPacket.class, WorldEventS2CPacket::new));
+        insertAfter(packets, WorldEventS2CPacket.class,
+                PacketInfo.of(PlaySoundIdS2CPacket.class, PlaySoundIdS2CPacket::new));
+        insertAfter(packets, PlaySoundIdS2CPacket.class,
+                PacketInfo.of(ParticleS2CPacket.class, ParticleS2CPacket::new));
+        insertAfter(packets, ParticleS2CPacket.class,
+                PacketInfo.of(GameStateChangeS2CPacket.class, GameStateChangeS2CPacket::new));
+        insertAfter(packets, GameStateChangeS2CPacket.class,
+                PacketInfo.of(EntitySpawnGlobalS2CPacket_1_15_2.class, EntitySpawnGlobalS2CPacket_1_15_2::new));
+        insertAfter(packets, EntitySpawnGlobalS2CPacket_1_15_2.class,
+                PacketInfo.of(GuiOpenS2CPacket_1_13_2.class, GuiOpenS2CPacket_1_13_2::new));
+        insertAfter(packets, CloseScreenS2CPacket.class,
+                PacketInfo.of(ScreenHandlerSlotUpdateS2CPacket.class, ScreenHandlerSlotUpdateS2CPacket::new));
+        insertAfter(packets, ScreenHandlerPropertyUpdateS2CPacket.class,
+                PacketInfo.of(AckScreenActionS2CPacket_1_16_5.class, AckScreenActionS2CPacket_1_16_5::new));
+        insertAfter(packets, AckScreenActionS2CPacket_1_16_5.class,
+                PacketInfo.of(UpdateSignS2CPacket.class, UpdateSignS2CPacket::new));
+        insertAfter(packets, MapUpdateS2CPacket_1_16_5.class,
+                PacketInfo.of(BlockEntityUpdateS2CPacket.class, BlockEntityUpdateS2CPacket::new));
+        insertAfter(packets, SignEditorOpenS2CPacket.class,
+                PacketInfo.of(StatisticsS2CPacket.class, StatisticsS2CPacket::new));
+        insertAfter(packets, StatisticsS2CPacket.class,
+                PacketInfo.of(PlayerListS2CPacket.class, PlayerListS2CPacket::new));
+        insertAfter(packets, PlayerAbilitiesS2CPacket.class,
+                PacketInfo.of(CommandSuggestionsS2CPacket.class, CommandSuggestionsS2CPacket::new));
+        insertAfter(packets, CommandSuggestionsS2CPacket.class,
+                PacketInfo.of(ScoreboardObjectiveUpdateS2CPacket.class, ScoreboardObjectiveUpdateS2CPacket::new));
+        insertAfter(packets, ScoreboardObjectiveUpdateS2CPacket.class,
+                PacketInfo.of(ScoreboardPlayerUpdateS2CPacket.class, ScoreboardPlayerUpdateS2CPacket::new));
+        insertAfter(packets, ScoreboardPlayerUpdateS2CPacket.class,
+                PacketInfo.of(ScoreboardDisplayS2CPacket.class, ScoreboardDisplayS2CPacket::new));
         insertAfter(packets, ScoreboardDisplayS2CPacket.class, PacketInfo.of(TeamS2CPacket.class, TeamS2CPacket::new));
-        insertAfter(packets, TeamS2CPacket.class, PacketInfo.of(CustomPayloadS2CPacket.class, CustomPayloadS2CPacket::new));
-        insertAfter(packets, CustomPayloadS2CPacket.class, PacketInfo.of(DisconnectS2CPacket.class, DisconnectS2CPacket::new));
-        insertAfter(packets, DisconnectS2CPacket.class, PacketInfo.of(DifficultyS2CPacket.class, DifficultyS2CPacket::new));
-        insertAfter(packets, CombatEventS2CPacket_1_16_5.class, PacketInfo.of(SetCameraEntityS2CPacket.class, SetCameraEntityS2CPacket::new));
-        insertAfter(packets, TitleS2CPacket_1_16_5.class, PacketInfo.of(SetCompressionThresholdS2CPacket_1_8.class, SetCompressionThresholdS2CPacket_1_8::new));
-        insertAfter(packets, PlayerListHeaderS2CPacket.class, PacketInfo.of(ResourcePackSendS2CPacket.class, ResourcePackSendS2CPacket::new));
-        insertAfter(packets, ResourcePackSendS2CPacket.class, PacketInfo.of(UpdateEntityNbtS2CPacket_1_8.class, UpdateEntityNbtS2CPacket_1_8::new));
+        insertAfter(packets, TeamS2CPacket.class,
+                PacketInfo.of(CustomPayloadS2CPacket.class, CustomPayloadS2CPacket::new));
+        insertAfter(packets, CustomPayloadS2CPacket.class,
+                PacketInfo.of(DisconnectS2CPacket.class, DisconnectS2CPacket::new));
+        insertAfter(packets, DisconnectS2CPacket.class,
+                PacketInfo.of(DifficultyS2CPacket.class, DifficultyS2CPacket::new));
+        insertAfter(packets, CombatEventS2CPacket_1_16_5.class,
+                PacketInfo.of(SetCameraEntityS2CPacket.class, SetCameraEntityS2CPacket::new));
+        insertAfter(packets, TitleS2CPacket_1_16_5.class,
+                PacketInfo.of(SetCompressionThresholdS2CPacket_1_8.class, SetCompressionThresholdS2CPacket_1_8::new));
+        insertAfter(packets, PlayerListHeaderS2CPacket.class,
+                PacketInfo.of(ResourcePackSendS2CPacket.class, ResourcePackSendS2CPacket::new));
+        insertAfter(packets, ResourcePackSendS2CPacket.class,
+                PacketInfo.of(UpdateEntityNbtS2CPacket_1_8.class, UpdateEntityNbtS2CPacket_1_8::new));
         return packets;
     }
 
@@ -941,27 +993,43 @@ public class Protocol_1_8 extends Protocol_1_9 {
         remove(packets, PlayerInteractBlockC2SPacket.class);
         remove(packets, PlayerInteractItemC2SPacket.class);
         packets.add(0, PacketInfo.of(KeepAliveC2SPacket.class, KeepAliveC2SPacket::new));
-        insertAfter(packets, PlayerInteractEntityC2SPacket.class, PacketInfo.of(PlayerMoveC2SPacket.OnGroundOnly.class, PlayerMoveC2SPacket.OnGroundOnly::read));
-        insertAfter(packets, PlayerMoveC2SPacket.PositionAndOnGround.class, PacketInfo.of(PlayerMoveC2SPacket.LookAndOnGround.class, PlayerMoveC2SPacket.LookAndOnGround::read));
-        insertAfter(packets, PlayerActionC2SPacket.class, PacketInfo.of(PlayerUseItemC2SPacket_1_8.class, PlayerUseItemC2SPacket_1_8::new));
-        insertAfter(packets, PlayerUseItemC2SPacket_1_8.class, PacketInfo.of(UpdateSelectedSlotC2SPacket.class, UpdateSelectedSlotC2SPacket::new));
-        insertAfter(packets, UpdateSelectedSlotC2SPacket.class, PacketInfo.of(HandSwingC2SPacket.class, HandSwingC2SPacket::new));
-        insertAfter(packets, PlayerInputC2SPacket.class, PacketInfo.of(CloseHandledScreenC2SPacket.class, CloseHandledScreenC2SPacket::new));
-        insertAfter(packets, CloseHandledScreenC2SPacket.class, PacketInfo.of(ClickSlotC2SPacket_1_16_5.class, ClickSlotC2SPacket_1_16_5::new));
-        insertAfter(packets, ClickSlotC2SPacket_1_16_5.class, PacketInfo.of(AckScreenActionC2SPacket_1_16_5.class, AckScreenActionC2SPacket_1_16_5::new));
-        insertAfter(packets, CreativeInventoryActionC2SPacket.class, PacketInfo.of(ButtonClickC2SPacket.class, ButtonClickC2SPacket::new));
-        insertAfter(packets, UpdateSignC2SPacket.class, PacketInfo.of(UpdatePlayerAbilitiesC2SPacket.class, UpdatePlayerAbilitiesC2SPacket::new));
-        insertAfter(packets, UpdatePlayerAbilitiesC2SPacket.class, PacketInfo.of(RequestCommandCompletionsC2SPacket.class, RequestCommandCompletionsC2SPacket::new));
-        insertAfter(packets, RequestCommandCompletionsC2SPacket.class, PacketInfo.of(ClientSettingsC2SPacket.class, ClientSettingsC2SPacket::new));
-        insertAfter(packets, ClientSettingsC2SPacket.class, PacketInfo.of(ClientStatusC2SPacket_1_11_2.class, ClientStatusC2SPacket_1_11_2::new));
-        insertAfter(packets, ClientStatusC2SPacket_1_11_2.class, PacketInfo.of(CustomPayloadC2SPacket_1_12_2.class, CustomPayloadC2SPacket_1_12_2::new));
-        insertAfter(packets, SpectatorTeleportC2SPacket.class, PacketInfo.of(ResourcePackStatusC2SPacket_1_9_4.class, ResourcePackStatusC2SPacket_1_9_4::new));
+        insertAfter(packets, PlayerInteractEntityC2SPacket.class,
+                PacketInfo.of(PlayerMoveC2SPacket.OnGroundOnly.class, PlayerMoveC2SPacket.OnGroundOnly::read));
+        insertAfter(packets, PlayerMoveC2SPacket.PositionAndOnGround.class,
+                PacketInfo.of(PlayerMoveC2SPacket.LookAndOnGround.class, PlayerMoveC2SPacket.LookAndOnGround::read));
+        insertAfter(packets, PlayerActionC2SPacket.class,
+                PacketInfo.of(PlayerUseItemC2SPacket_1_8.class, PlayerUseItemC2SPacket_1_8::new));
+        insertAfter(packets, PlayerUseItemC2SPacket_1_8.class,
+                PacketInfo.of(UpdateSelectedSlotC2SPacket.class, UpdateSelectedSlotC2SPacket::new));
+        insertAfter(packets, UpdateSelectedSlotC2SPacket.class,
+                PacketInfo.of(HandSwingC2SPacket.class, HandSwingC2SPacket::new));
+        insertAfter(packets, PlayerInputC2SPacket.class,
+                PacketInfo.of(CloseHandledScreenC2SPacket.class, CloseHandledScreenC2SPacket::new));
+        insertAfter(packets, CloseHandledScreenC2SPacket.class,
+                PacketInfo.of(ClickSlotC2SPacket_1_16_5.class, ClickSlotC2SPacket_1_16_5::new));
+        insertAfter(packets, ClickSlotC2SPacket_1_16_5.class,
+                PacketInfo.of(AckScreenActionC2SPacket_1_16_5.class, AckScreenActionC2SPacket_1_16_5::new));
+        insertAfter(packets, CreativeInventoryActionC2SPacket.class,
+                PacketInfo.of(ButtonClickC2SPacket.class, ButtonClickC2SPacket::new));
+        insertAfter(packets, UpdateSignC2SPacket.class,
+                PacketInfo.of(UpdatePlayerAbilitiesC2SPacket.class, UpdatePlayerAbilitiesC2SPacket::new));
+        insertAfter(packets, UpdatePlayerAbilitiesC2SPacket.class,
+                PacketInfo.of(RequestCommandCompletionsC2SPacket.class, RequestCommandCompletionsC2SPacket::new));
+        insertAfter(packets, RequestCommandCompletionsC2SPacket.class,
+                PacketInfo.of(ClientSettingsC2SPacket.class, ClientSettingsC2SPacket::new));
+        insertAfter(packets, ClientSettingsC2SPacket.class,
+                PacketInfo.of(ClientStatusC2SPacket_1_11_2.class, ClientStatusC2SPacket_1_11_2::new));
+        insertAfter(packets, ClientStatusC2SPacket_1_11_2.class,
+                PacketInfo.of(CustomPayloadC2SPacket_1_12_2.class, CustomPayloadC2SPacket_1_12_2::new));
+        insertAfter(packets, SpectatorTeleportC2SPacket.class,
+                PacketInfo.of(ResourcePackStatusC2SPacket_1_9_4.class, ResourcePackStatusC2SPacket_1_9_4::new));
         return packets;
     }
 
     @Override
     @ThreadSafe
     public boolean onSendPacket(Packet<?> packet) {
+        MinecraftClient client = MinecraftClient.getInstance();
         if (packet instanceof TeleportConfirmC2SPacket) {
             return false;
         }
@@ -971,27 +1039,31 @@ public class Protocol_1_8 extends Protocol_1_9 {
         if (packet instanceof VehicleMoveC2SPacket) {
             return false;
         }
-        if (packet instanceof ClientCommandC2SPacket && ((ClientCommandC2SPacket) packet).getMode() == ClientCommandC2SPacket.Mode.STOP_RIDING_JUMP) {
+        if (packet instanceof ClientCommandC2SPacket
+                && ((ClientCommandC2SPacket) packet).getMode() == ClientCommandC2SPacket.Mode.STOP_RIDING_JUMP) {
             return false;
         }
-        if (packet instanceof PlayerActionC2SPacket && ((PlayerActionC2SPacket) packet).getAction() == PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND) {
+        if (packet instanceof PlayerActionC2SPacket && ((PlayerActionC2SPacket) packet)
+                .getAction() == PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND) {
             return false;
         }
         if (packet instanceof PlayerInteractBlockC2SPacket interactBlock) {
-            MinecraftClient.getInstance().execute(() -> {
-                ClientPlayerEntity player = MinecraftClient.getInstance().player;
+            client.execute(() -> {
+                ClientPlayerEntity player = client.player;
                 if (player != null) {
                     BlockHitResult hitResult = interactBlock.getBlockHitResult();
                     BlockPos blockPos = hitResult.getBlockPos();
                     Vec3d pos = hitResult.getPos();
-                    player.networkHandler.sendPacket(new PlayerUseItemC2SPacket_1_8(blockPos, hitResult.getSide().getId(), player.getMainHandStack(), (float)(pos.x - blockPos.getX()), (float)(pos.y - blockPos.getY()), (float)(pos.z - blockPos.getZ())));
+                    player.networkHandler.sendPacket(new PlayerUseItemC2SPacket_1_8(blockPos,
+                            hitResult.getSide().getId(), player.getMainHandStack(), (float) (pos.x - blockPos.getX()),
+                            (float) (pos.y - blockPos.getY()), (float) (pos.z - blockPos.getZ())));
                 }
             });
             return false;
         }
         if (packet instanceof PlayerInteractItemC2SPacket) {
-            MinecraftClient.getInstance().execute(() -> {
-                ClientPlayerEntity player = MinecraftClient.getInstance().player;
+            client.execute(() -> {
+                ClientPlayerEntity player = client.player;
                 if (player != null) {
                     player.networkHandler.sendPacket(new PlayerUseItemC2SPacket_1_8(player.getMainHandStack()));
                 }
@@ -1134,8 +1206,10 @@ public class Protocol_1_8 extends Protocol_1_9 {
                 for (int east = 0; east < 2; east++) {
                     for (int flip = 0; flip < 2; flip++) {
                         for (BlockState state : block.getStateManager().getStates()) {
-                            if (!acceptBlockState(state)) continue;
-                            if (state.get(FireBlock.EAST) == (east == 0)) continue;
+                            if (!acceptBlockState(state))
+                                continue;
+                            if (state.get(FireBlock.EAST) == (east == 0))
+                                continue;
                             states.add(state);
                             if (state.get(FireBlock.UP) && state.get(FireBlock.WEST)) {
                                 states.add(state.with(FireBlock.WEST, false)); // upper = 2, west = false
@@ -1148,14 +1222,14 @@ public class Protocol_1_8 extends Protocol_1_9 {
             return states.stream();
         }
         if (block == Blocks.TRIPWIRE_HOOK) {
-            return block.getStateManager().getStates().stream()
-                    .filter(this::acceptBlockState)
+            return block.getStateManager().getStates().stream().filter(this::acceptBlockState)
                     .flatMap(state -> Stream.of(state, state)); // suspended = false, true
         }
         if (block == Blocks.TRIPWIRE) {
             List<BlockState> states = new ArrayList<>();
             for (BlockState state : block.getStateManager().getStates()) {
-                if (!acceptBlockState(state)) continue;
+                if (!acceptBlockState(state))
+                    continue;
                 states.add(state); // suspended = false
                 if (state.get(TripwireBlock.WEST)) {
                     // suspended = true
@@ -1179,7 +1253,8 @@ public class Protocol_1_8 extends Protocol_1_9 {
         super.registerCommands(dispatcher, serverCommands);
         BrigadierRemover.of(dispatcher).get("time").get("query").get("day").remove();
         BrigadierRemover.of(dispatcher).get("scoreboard").get("players").get("tag").remove();
-        BrigadierRemover.of(dispatcher).get("scoreboard").get("teams").get("option").get("team").get("collisionRule").remove();
+        BrigadierRemover.of(dispatcher).get("scoreboard").get("teams").get("option").get("team").get("collisionRule")
+                .remove();
     }
 
     public static List<DataTracker.Entry<?>> deserializeDataTrackerEntries(PacketByteBuf buf) {
@@ -1194,17 +1269,17 @@ public class Protocol_1_8 extends Protocol_1_9 {
             int serializerId = (n & 0b11100000) >> 5;
             int id = n & 0b00011111;
             Object value = switch (serializerId) {
-                case 0 -> buf.readByte();
-                case 1 -> buf.readShort();
-                case 2 -> buf.readInt();
-                case 3 -> buf.readFloat();
-                case 4 -> buf.readString(32767);
-                case 5 -> buf.readItemStack();
-                case 6 -> new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
-                case 7 -> new EulerAngle(buf.readFloat(), buf.readFloat(), buf.readFloat());
-                default ->
-                        // serializer id ranges from 0-7
-                        throw new AssertionError();
+            case 0 -> buf.readByte();
+            case 1 -> buf.readShort();
+            case 2 -> buf.readInt();
+            case 3 -> buf.readFloat();
+            case 4 -> buf.readString(32767);
+            case 5 -> buf.readItemStack();
+            case 6 -> new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
+            case 7 -> new EulerAngle(buf.readFloat(), buf.readFloat(), buf.readFloat());
+            default ->
+                // serializer id ranges from 0-7
+                throw new AssertionError();
             };
 
             entries.add(new DataTrackerEntry_1_8(serializerId, id, value));
@@ -1339,7 +1414,7 @@ public class Protocol_1_8 extends Protocol_1_9 {
             }
         } else if (entity instanceof ItemFrameEntity) {
             if (id == 9) {
-                entity.getDataTracker().set(ItemFrameEntityAccessor.getRotation(), (int)data);
+                entity.getDataTracker().set(ItemFrameEntityAccessor.getRotation(), (int) data);
             }
         } else if (entity instanceof AbstractMinecartEntity) {
             if (id == 22) {
@@ -1514,12 +1589,12 @@ public class Protocol_1_8 extends Protocol_1_9 {
     public static void handleEulerAngleTrackedData(Entity entity, int id, EulerAngle data) {
         if (entity instanceof ArmorStandEntity) {
             switch (id) {
-                case 11 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_HEAD_ROTATION, data);
-                case 12 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_BODY_ROTATION, data);
-                case 13 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_LEFT_ARM_ROTATION, data);
-                case 14 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_RIGHT_ARM_ROTATION, data);
-                case 15 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_LEFT_LEG_ROTATION, data);
-                case 16 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_RIGHT_LEG_ROTATION, data);
+            case 11 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_HEAD_ROTATION, data);
+            case 12 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_BODY_ROTATION, data);
+            case 13 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_LEFT_ARM_ROTATION, data);
+            case 14 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_RIGHT_ARM_ROTATION, data);
+            case 15 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_LEFT_LEG_ROTATION, data);
+            case 16 -> entity.getDataTracker().set(ArmorStandEntity.TRACKER_RIGHT_LEG_ROTATION, data);
             }
         }
     }

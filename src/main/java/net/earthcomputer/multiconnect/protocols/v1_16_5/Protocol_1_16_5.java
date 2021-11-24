@@ -23,6 +23,8 @@ import net.earthcomputer.multiconnect.protocols.v1_16_5.mixin.ShulkerEntityAcces
 import net.earthcomputer.multiconnect.protocols.v1_16_5.mixin.TagGroupSerializedAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_17.EntityDestroyS2CPacket_1_17;
 import net.earthcomputer.multiconnect.protocols.v1_17.Protocol_1_17;
+import net.earthcomputer.multiconnect.protocols.v1_17_1.Particles_1_17_1;
+import net.earthcomputer.multiconnect.protocols.v1_17_1.Protocol_1_17_1;
 import net.earthcomputer.multiconnect.transformer.TransformerByteBuf;
 import net.earthcomputer.multiconnect.transformer.VarInt;
 import net.minecraft.advancement.Advancement;
@@ -67,7 +69,6 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
-import net.minecraft.world.biome.source.BiomeArray;
 import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.event.GameEvent;
 
@@ -123,7 +124,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
             buf.enablePassthroughMode();
             buf.readNbt(); // heightmaps
             if (fullChunk) {
-                buf.readIntArray(BiomeArray.DEFAULT_LENGTH);
+                buf.readIntArray(Protocol_1_17_1.MAX_BIOME_LENGTH);
             } else {
                 // TODO: get the actual biome array from somewhere
                 buf.pendingRead(int[].class, new int[BIOME_ARRAY_LENGTH]);
@@ -930,7 +931,7 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
     }
 
     private void mutateParticleTypeRegistry(ISimpleRegistry<ParticleType<?>> registry) {
-        registry.unregister(ParticleTypes.LIGHT);
+        registry.unregister(Particles_1_17_1.LIGHT);
         registry.unregister(ParticleTypes.SMALL_FLAME);
         registry.unregister(ParticleTypes.SNOWFLAKE);
         registry.unregister(ParticleTypes.DRIPPING_DRIPSTONE_LAVA);
@@ -1318,8 +1319,8 @@ public class Protocol_1_16_5 extends Protocol_1_17 {
         tags.add(BlockTags.NEEDS_IRON_TOOL, Blocks.DIAMOND_BLOCK, Blocks.DIAMOND_ORE, Blocks.EMERALD_ORE, Blocks.EMERALD_BLOCK, Blocks.GOLD_BLOCK, Blocks.GOLD_ORE, Blocks.REDSTONE_ORE);
         tags.add(BlockTags.NEEDS_DIAMOND_TOOL, Blocks.OBSIDIAN, Blocks.CRYING_OBSIDIAN, Blocks.NETHERITE_BLOCK, Blocks.RESPAWN_ANCHOR, Blocks.ANCIENT_DEBRIS);
         tags.add(BlockTags.FEATURES_CANNOT_REPLACE, Blocks.BEDROCK, Blocks.SPAWNER, Blocks.CHEST, Blocks.END_PORTAL_FRAME);
-        tags.addTag(BlockTags.LAVA_POOL_STONE_REPLACEABLES, BlockTags.FEATURES_CANNOT_REPLACE);
-        tags.addTag(BlockTags.LAVA_POOL_STONE_REPLACEABLES, BlockTags.LEAVES);
+        tags.addTag(BlockTags.LAVA_POOL_STONE_CANNOT_REPLACE, BlockTags.FEATURES_CANNOT_REPLACE);
+        tags.addTag(BlockTags.LAVA_POOL_STONE_CANNOT_REPLACE, BlockTags.LEAVES);
         tags.add(BlockTags.GEODE_INVALID_BLOCKS, Blocks.BEDROCK, Blocks.WATER, Blocks.LAVA, Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);
         super.addExtraBlockTags(tags);
     }

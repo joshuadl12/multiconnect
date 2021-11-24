@@ -9,6 +9,8 @@ import net.earthcomputer.multiconnect.protocols.generic.PacketInfo;
 import net.earthcomputer.multiconnect.protocols.v1_10.Protocol_1_10;
 import net.earthcomputer.multiconnect.protocols.v1_12_2.command.BrigadierRemover;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.TitleS2CPacket_1_16_5;
+import net.earthcomputer.multiconnect.protocols.v1_9_2.mixin.ChunkDataAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_9_2.mixin.ChunkDataBlockEntityAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_9_4.Protocol_1_9_4;
 import net.earthcomputer.multiconnect.transformer.VarInt;
 import net.minecraft.block.BlockState;
@@ -17,6 +19,7 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.registry.Registry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -80,7 +83,12 @@ public class Protocol_1_9_2 extends Protocol_1_9_4 {
                             nbt.putInt("x", pos.getX());
                             nbt.putInt("y", pos.getY());
                             nbt.putInt("z", pos.getZ());
-                            translator.getPacket().getBlockEntityTagList().add(nbt);
+                            var blockEntity = ChunkDataBlockEntityAccessor.createChunkDataBlockEntity(
+                                    (ChunkSectionPos.getLocalCoord(pos.getX()) << 4) | ChunkSectionPos.getLocalCoord(pos.getZ()),
+                                    pos.getY(),
+                                    blockEntityType,
+                                    nbt);
+                            ((ChunkDataAccessor) translator.getPacket().getChunkData()).getBlockEntities().add(blockEntity);
                         }
                     }
                 }

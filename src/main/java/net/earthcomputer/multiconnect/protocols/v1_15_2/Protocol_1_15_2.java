@@ -4,7 +4,13 @@ import net.earthcomputer.multiconnect.api.Protocols;
 import net.earthcomputer.multiconnect.api.ThreadSafe;
 import net.earthcomputer.multiconnect.impl.Utils;
 import net.earthcomputer.multiconnect.protocols.ProtocolRegistry;
-import net.earthcomputer.multiconnect.protocols.generic.*;
+import net.earthcomputer.multiconnect.protocols.generic.ChunkData;
+import net.earthcomputer.multiconnect.protocols.generic.ChunkDataTranslator;
+import net.earthcomputer.multiconnect.protocols.generic.DataTrackerManager;
+import net.earthcomputer.multiconnect.protocols.generic.ISimpleRegistry;
+import net.earthcomputer.multiconnect.protocols.generic.PacketInfo;
+import net.earthcomputer.multiconnect.protocols.generic.RegistryMutator;
+import net.earthcomputer.multiconnect.protocols.generic.TagRegistry;
 import net.earthcomputer.multiconnect.protocols.generic.blockconnections.BlockConnections;
 import net.earthcomputer.multiconnect.protocols.generic.blockconnections.connectors.SimpleInPlaceConnector;
 import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.ProjectileEntityAccessor;
@@ -12,8 +18,18 @@ import net.earthcomputer.multiconnect.protocols.v1_15_2.mixin.RenameItemStackAtt
 import net.earthcomputer.multiconnect.protocols.v1_15_2.mixin.TameableEntityAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_15_2.mixin.WolfEntityAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_16.Protocol_1_16;
-import net.earthcomputer.multiconnect.transformer.*;
-import net.minecraft.block.*;
+import net.earthcomputer.multiconnect.protocols.v1_17_1.Protocol_1_17_1;
+import net.earthcomputer.multiconnect.transformer.Codecked;
+import net.earthcomputer.multiconnect.transformer.InboundTranslator;
+import net.earthcomputer.multiconnect.transformer.OutboundTranslator;
+import net.earthcomputer.multiconnect.transformer.TransformerByteBuf;
+import net.earthcomputer.multiconnect.transformer.UnsignedByte;
+import net.earthcomputer.multiconnect.transformer.VarInt;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.JigsawBlock;
+import net.minecraft.block.WallBlock;
 import net.minecraft.block.enums.JigsawOrientation;
 import net.minecraft.block.enums.WallShape;
 import net.minecraft.block.enums.WireConnection;
@@ -30,7 +46,9 @@ import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
-import net.minecraft.item.*;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtLongArray;
@@ -41,7 +59,16 @@ import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateJigsawC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdatePlayerAbilitiesC2SPacket;
 import net.minecraft.network.packet.s2c.login.LoginSuccessS2CPacket;
-import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityAttributesS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityEquipmentUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.ExperienceOrbSpawnS2CPacket;
+import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
+import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
+import net.minecraft.network.packet.s2c.play.LightUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerSpawnPositionS2CPacket;
+import net.minecraft.network.packet.s2c.play.ScoreboardPlayerUpdateS2CPacket;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.recipe.RecipeSerializer;
@@ -67,7 +94,13 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
 import net.minecraft.world.dimension.DimensionType;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -78,12 +111,12 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
 
     public static void registerTranslators() {
         ProtocolRegistry.registerInboundTranslator(ChunkData.class, buf -> {
-            BitSet verticalStripBitmask = ChunkDataTranslator.current().getPacket().getVerticalStripBitmask();
+            BitSet verticalStripBitmask = ChunkDataTranslator.current().getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
             buf.enablePassthroughMode();
             for (int sectionY = 0; sectionY < 16; sectionY++) {
                 if (verticalStripBitmask.get(sectionY)) {
                     buf.readShort(); // non-empty block count
-                    int paletteSize = ChunkData.skipPalette(buf);
+                    int paletteSize = ChunkData.skipPalette(buf, false);
                     // translate from packed chunk data to aligned
                     if (paletteSize == 0 || MathHelper.isPowerOfTwo(paletteSize)) {
                         // shortcut, for powers of 2, elements are already aligned
@@ -238,17 +271,17 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
 
             @Override
             public ItemStack translate(ItemStack from) {
-                if (from.getItem() == Items.PLAYER_HEAD && from.hasTag()) {
-                    NbtCompound tag = from.getTag();
-                    assert tag != null;
-                    if (tag.contains("SkullOwner", 10)) {
-                        NbtCompound skullOwner = tag.getCompound("SkullOwner");
+                if (from.getItem() == Items.PLAYER_HEAD && from.hasNbt()) {
+                    NbtCompound nbt = from.getNbt();
+                    assert nbt != null;
+                    if (nbt.contains("SkullOwner", 10)) {
+                        NbtCompound skullOwner = nbt.getCompound("SkullOwner");
                         if (skullOwner.contains("Id", 8)) {
                             try {
                                 UUID uuid = UUID.fromString(skullOwner.getString("Id"));
                                 from = from.copy();
-                                assert from.getTag() != null;
-                                from.getTag().getCompound("SkullOwner").putUuid("Id", uuid);
+                                assert from.getNbt() != null;
+                                from.getNbt().getCompound("SkullOwner").putUuid("Id", uuid);
                             } catch (IllegalArgumentException e) {
                                 // uuid failed to parse
                             }
@@ -310,16 +343,16 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
 
             @Override
             public ItemStack translate(ItemStack from) {
-                if (from.getItem() == Items.PLAYER_HEAD && from.hasTag()) {
-                    NbtCompound tag = from.getTag();
-                    assert tag != null;
-                    if (tag.contains("SkullOwner", 10)) {
-                        NbtCompound skullOwner = tag.getCompound("SkullOwner");
+                if (from.getItem() == Items.PLAYER_HEAD && from.hasNbt()) {
+                    NbtCompound nbt = from.getNbt();
+                    assert nbt != null;
+                    if (nbt.contains("SkullOwner", 10)) {
+                        NbtCompound skullOwner = nbt.getCompound("SkullOwner");
                         if (skullOwner.containsUuid("Id")) {
                             UUID uuid = skullOwner.getUuid("Id");
                             from = from.copy();
-                            assert from.getTag() != null;
-                            from.getTag().getCompound("SkullOwner").putString("Id", uuid.toString());
+                            assert from.getNbt() != null;
+                            from.getNbt().getCompound("SkullOwner").putString("Id", uuid.toString());
                         }
                     }
                 }
@@ -355,7 +388,7 @@ public class Protocol_1_15_2 extends Protocol_1_16 {
     }
 
     public static void skipPalettedContainer(PacketByteBuf buf) {
-        int paletteSize = ChunkData.skipPalette(buf);
+        int paletteSize = ChunkData.skipPalette(buf, false);
         buf.readLongArray(new long[paletteSize * 64]); // chunk data
     }
 

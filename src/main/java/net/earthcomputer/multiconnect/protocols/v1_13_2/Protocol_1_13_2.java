@@ -5,18 +5,42 @@ import net.earthcomputer.multiconnect.api.Protocols;
 import net.earthcomputer.multiconnect.api.ThreadSafe;
 import net.earthcomputer.multiconnect.impl.ConnectionInfo;
 import net.earthcomputer.multiconnect.impl.Utils;
-import net.earthcomputer.multiconnect.protocols.generic.*;
 import net.earthcomputer.multiconnect.protocols.ProtocolRegistry;
-import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.*;
+import net.earthcomputer.multiconnect.protocols.generic.ChunkData;
+import net.earthcomputer.multiconnect.protocols.generic.ChunkDataTranslator;
+import net.earthcomputer.multiconnect.protocols.generic.DataTrackerManager;
+import net.earthcomputer.multiconnect.protocols.generic.ISimpleRegistry;
+import net.earthcomputer.multiconnect.protocols.generic.Key;
+import net.earthcomputer.multiconnect.protocols.generic.PacketInfo;
+import net.earthcomputer.multiconnect.protocols.generic.RegistryMutator;
+import net.earthcomputer.multiconnect.protocols.generic.TagRegistry;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.CatEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.EnderEyeEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.EntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.FireworkEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.LivingEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.MooshroomEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.ProjectileEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.VillagerEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.ZombieEntityAccessor;
+import net.earthcomputer.multiconnect.protocols.v1_13_2.mixin.ZombieVillagerEntityAccessor;
 import net.earthcomputer.multiconnect.protocols.v1_14_4.SoundEvents_1_14_4;
 import net.earthcomputer.multiconnect.protocols.v1_15_2.Protocol_1_15_2;
 import net.earthcomputer.multiconnect.protocols.v1_16_1.RecipeBookDataC2SPacket_1_16_1;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.EntityS2CPacket_1_16_5;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.MapUpdateS2CPacket_1_16_5;
 import net.earthcomputer.multiconnect.protocols.v1_16_5.Protocol_1_16_5;
-import net.earthcomputer.multiconnect.transformer.*;
+import net.earthcomputer.multiconnect.protocols.v1_17_1.Biomes_1_17_1;
+import net.earthcomputer.multiconnect.protocols.v1_17_1.Protocol_1_17_1;
 import net.earthcomputer.multiconnect.protocols.v1_14.Protocol_1_14;
-import net.minecraft.block.*;
+import net.earthcomputer.multiconnect.transformer.InboundTranslator;
+import net.earthcomputer.multiconnect.transformer.OutboundTranslator;
+import net.earthcomputer.multiconnect.transformer.TransformerByteBuf;
+import net.earthcomputer.multiconnect.transformer.VarInt;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.NoteBlock;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.block.enums.Instrument;
 import net.minecraft.client.MinecraftClient;
@@ -24,12 +48,20 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
-import net.minecraft.entity.*;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.EyeOfEnderEntity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.mob.*;
+import net.minecraft.entity.mob.AbstractSkeletonEntity;
+import net.minecraft.entity.mob.IllagerEntity;
+import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.mob.ZombieVillagerEntity;
 import net.minecraft.entity.passive.CatEntity;
 import net.minecraft.entity.passive.HorseEntity;
 import net.minecraft.entity.passive.MooshroomEntity;
@@ -43,8 +75,33 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 import net.minecraft.network.Packet;
-import net.minecraft.network.packet.c2s.play.*;
-import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.network.packet.c2s.play.UpdateDifficultyC2SPacket;
+import net.minecraft.network.packet.c2s.play.UpdateDifficultyLockC2SPacket;
+import net.minecraft.network.packet.c2s.play.UpdateJigsawC2SPacket;
+import net.minecraft.network.packet.c2s.play.VehicleMoveC2SPacket;
+import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
+import net.minecraft.network.packet.s2c.play.ChunkLoadDistanceS2CPacket;
+import net.minecraft.network.packet.s2c.play.ChunkRenderDistanceCenterS2CPacket;
+import net.minecraft.network.packet.s2c.play.CloseScreenS2CPacket;
+import net.minecraft.network.packet.s2c.play.DifficultyS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityAttachS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
+import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
+import net.minecraft.network.packet.s2c.play.LightUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.NbtQueryResponseS2CPacket;
+import net.minecraft.network.packet.s2c.play.OpenHorseScreenS2CPacket;
+import net.minecraft.network.packet.s2c.play.OpenScreenS2CPacket;
+import net.minecraft.network.packet.s2c.play.OpenWrittenBookS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlaySoundFromEntityS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
+import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
+import net.minecraft.network.packet.s2c.play.StopSoundS2CPacket;
+import net.minecraft.network.packet.s2c.play.SynchronizeRecipesS2CPacket;
+import net.minecraft.network.packet.s2c.play.SynchronizeTagsS2CPacket;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.recipe.RecipeSerializer;
@@ -52,7 +109,9 @@ import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.stat.Stats;
-import net.minecraft.tag.*;
+import net.minecraft.tag.BlockTags;
+import net.minecraft.tag.EntityTypeTags;
+import net.minecraft.tag.ItemTags;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
@@ -74,7 +133,9 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
 import net.minecraft.world.chunk.ChunkSection;
 
-import java.util.*;
+import java.util.BitSet;
+import java.util.List;
+import java.util.OptionalInt;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -134,7 +195,7 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         ProtocolRegistry.registerInboundTranslator(ChunkData.class, buf -> {
             byte[][] blockLight = new byte[16][];
             byte[][] skyLight = new byte[16][];
-            BitSet verticalStripBitmask = ChunkDataTranslator.current().getPacket().getVerticalStripBitmask();
+            BitSet verticalStripBitmask = ChunkDataTranslator.current().getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK);
             for (int sectionY = 0; sectionY < 16; sectionY++) {
                 if (verticalStripBitmask.get(sectionY)) {
                     buf.pendingRead(Short.class, (short)0);
@@ -291,10 +352,10 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
 
             @Override
             public ItemStack translate(ItemStack stack) {
-                if (stack.hasTag()) {
-                    assert stack.getTag() != null;
-                    if (stack.getTag().contains("display", 10)) {
-                        NbtCompound display = stack.getTag().getCompound("display");
+                if (stack.hasNbt()) {
+                    assert stack.getNbt() != null;
+                    if (stack.getNbt().contains("display", 10)) {
+                        NbtCompound display = stack.getNbt().getCompound("display");
                         if (display.contains("Lore", 9)) {
                             NbtList lore = display.getList("Lore", 8);
                             display.put("multiconnect:1.13.2/oldLore", lore);
@@ -354,14 +415,14 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
 
             @Override
             public ItemStack translate(ItemStack stack) {
-                if (stack.hasTag()) {
-                    assert stack.getTag() != null;
-                    if (stack.getTag().contains("display", 10)) {
-                        NbtCompound display = stack.getTag().getCompound("display");
+                if (stack.hasNbt()) {
+                    assert stack.getNbt() != null;
+                    if (stack.getNbt().contains("display", 10)) {
+                        NbtCompound display = stack.getNbt().getCompound("display");
                         if (display.contains("multiconnect:1.13.2/oldLore", 9) || display.contains("Lore", 9)) {
                             stack = stack.copy();
-                            assert stack.getTag() != null;
-                            display = stack.getTag().getCompound("display");
+                            assert stack.getNbt() != null;
+                            display = stack.getNbt().getCompound("display");
                             NbtList lore = display.contains("multiconnect:1.13.2/oldLore", 9) ? display.getList("multiconnect:1.13.2/oldLore", 8) : display.getList("Lore", 8);
                             NbtList newLore = new NbtList();
                             for (int i = 0; i < lore.size(); i++) {
@@ -395,7 +456,7 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
         LightUpdateS2CPacket lightUpdatePacket = Utils.createPacket(LightUpdateS2CPacket.class, LightUpdateS2CPacket::new, Protocols.V1_14, buf -> {
             buf.pendingRead(VarInt.class, new VarInt(packet.getX()));
             buf.pendingRead(VarInt.class, new VarInt(packet.getZ()));
-            int blockLightMask = bitSetToInt(packet.getVerticalStripBitmask()) << 1;
+            int blockLightMask = bitSetToInt(data.multiconnect_getUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK)) << 1;
             buf.pendingRead(VarInt.class, new VarInt(translator.getDimension().hasSkyLight() ? blockLightMask : 0)); // sky light mask
             buf.pendingRead(VarInt.class, new VarInt(blockLightMask)); // block light mask
             buf.pendingRead(VarInt.class, new VarInt(0)); // filled sky light mask
@@ -460,8 +521,8 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
                 }
             }
         }
-        packet.getHeightmaps().putLongArray("WORLD_SURFACE", worldSurface.getStorage());
-        packet.getHeightmaps().putLongArray("MOTION_BLOCKING", motionBlocking.getStorage());
+        packet.getChunkData().getHeightmap().putLongArray("WORLD_SURFACE", worldSurface.getData());
+        packet.getChunkData().getHeightmap().putLongArray("MOTION_BLOCKING", motionBlocking.getData());
 
         super.postTranslateChunk(translator, data);
     }
@@ -802,7 +863,7 @@ public class Protocol_1_13_2 extends Protocol_1_14 {
 
     private void mutateBiomeRegistry(ISimpleRegistry<Biome> registry) {
         registry.unregister(BiomeKeys.BAMBOO_JUNGLE);
-        registry.unregister(BiomeKeys.BAMBOO_JUNGLE_HILLS);
+        registry.unregister(Biomes_1_17_1.BAMBOO_JUNGLE_HILLS);
     }
 
     private void mutateStatusEffectRegistry(ISimpleRegistry<StatusEffect> registry) {

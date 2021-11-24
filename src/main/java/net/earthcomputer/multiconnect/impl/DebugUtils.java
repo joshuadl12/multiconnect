@@ -7,14 +7,15 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.timeout.TimeoutException;
 import net.earthcomputer.multiconnect.api.ThreadSafe;
 import net.earthcomputer.multiconnect.connect.ConnectionMode;
+import net.earthcomputer.multiconnect.mixin.bridge.ChunkDataAccessor;
 import net.earthcomputer.multiconnect.mixin.connect.ClientConnectionAccessor;
 import net.earthcomputer.multiconnect.mixin.connect.DecoderHandlerAccessor;
 import net.earthcomputer.multiconnect.protocols.ProtocolRegistry;
 import net.earthcomputer.multiconnect.protocols.generic.AbstractProtocol;
 import net.earthcomputer.multiconnect.protocols.generic.ChunkDataTranslator;
-import net.earthcomputer.multiconnect.mixin.bridge.ChunkDataPacketAccessor;
 import net.earthcomputer.multiconnect.protocols.generic.IIdList;
 import net.earthcomputer.multiconnect.protocols.generic.IUserDataHolder;
+import net.earthcomputer.multiconnect.protocols.v1_17_1.Protocol_1_17_1;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.SharedConstants;
 import net.minecraft.block.Block;
@@ -74,6 +75,7 @@ public class DebugUtils {
     private static int rareBugIdThatOccurred = 0;
     private static long timeThatRareBugOccurred;
     public static String lastServerBrand = ClientBrandRetriever.VANILLA;
+    public static final boolean UNIT_TEST_MODE = Boolean.getBoolean("multiconnect.unitTestMode");
 
     @SuppressWarnings("unchecked")
     public static void dumpBlockStates() {
@@ -192,13 +194,22 @@ public class DebugUtils {
             if (result) {
                 Util.getOperatingSystem().open(url);
             }
-            MinecraftClient.getInstance().openScreen(parentScreen);
+            MinecraftClient.getInstance().setScreen(parentScreen);
         }, parentScreen.getTitle(), new TranslatableText("multiconnect.rareBug.screen"));
     }
 
     @ThreadSafe
     public static boolean isUnexpectedDisconnect(Throwable t) {
         return !(t instanceof PacketEncoderException) && !(t instanceof TimeoutException);
+    }
+
+    public static byte[] getData(ByteBuf buf) {
+        int prevReaderIndex = buf.readerIndex();
+        buf.readerIndex(0);
+        byte[] data = new byte[buf.readableBytes()];
+        buf.readBytes(data);
+        buf.readerIndex(prevReaderIndex);
+        return data;
     }
 
     public static void logPacketDisconnectError(byte[] data, String... extraLines) {
@@ -236,7 +247,7 @@ public class DebugUtils {
         channel.pipeline().context("decoder").fireChannelRead(Unpooled.wrappedBuffer(bytes));
     }
 
-    public static void handleChunkDataDump(ClientPlayNetworkHandler networkHandler, String base64, boolean compressed, int x, int z, BitSet verticalStripBitmask) {
+    public static void handleChunkDataDump(ClientPlayNetworkHandler networkHandler, String base64, boolean compressed, int x, int z, @Nullable BitSet verticalStripBitmask) {
         byte[] data = decode(base64, compressed);
         if (data == null) {
             return;
@@ -245,10 +256,11 @@ public class DebugUtils {
         ClientWorld world = networkHandler.getWorld();
         DynamicRegistryManager registryManager = networkHandler.getRegistryManager();
         ChunkDataS2CPacket packet = Utils.createEmptyChunkDataPacket(x, z, world, registryManager);
-        ChunkDataPacketAccessor accessor = (ChunkDataPacketAccessor) packet;
-        ((IUserDataHolder) accessor).multiconnect_setUserData(ChunkDataTranslator.DATA_TRANSLATED_KEY, false);
-        accessor.setData(data);
-        accessor.setVerticalStripBitmask(verticalStripBitmask);
+        ((IUserDataHolder) packet).multiconnect_setUserData(ChunkDataTranslator.DATA_TRANSLATED_KEY, false);
+        ((ChunkDataAccessor) packet.getChunkData()).setSectionsData(data);
+        if (verticalStripBitmask != null) {
+            ((IUserDataHolder) packet).multiconnect_setUserData(Protocol_1_17_1.VERTICAL_STRIP_BITMASK, verticalStripBitmask);
+        }
         ChunkDataTranslator.submit(packet);
     }
 
@@ -289,7 +301,7 @@ public class DebugUtils {
                 delegate.callDecode(ctx, in, out);
             } catch (Throwable t) {
                 if (isUnexpectedDisconnect(t)) {
-                    logPacketDisconnectError(in.array());
+                    logPacketDisconnectError(DebugUtils.getData(in));
                 }
                 throw t;
             }

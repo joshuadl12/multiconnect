@@ -65,7 +65,7 @@ processResources {
 // see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
 tasks.withType(JavaCompile) {
 	options.encoding = "UTF-8"
-	options.release = 17
+	options.release = 18
 	options.compilerArgs += "--enable-preview"
 }
 
